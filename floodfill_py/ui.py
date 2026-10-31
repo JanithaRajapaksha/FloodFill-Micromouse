@@ -1,177 +1,177 @@
-import time
+"""
+Lightweight demonstration UI for Micromouse Flood-Fill using Pygame.
+Dynamically scales to any maze size (5x5, 6x6, 10x10, 16x16, etc.).
+"""
 
-import pygame
 import os
+import sys
+from typing import List, Optional, Tuple
 
-from cell import Cell, Maze
-from mouse import Mouse as M
-from floodFill import create_empty_maze, wall_arrangement_x5, wall_arrangement_x6, flood_fill, navigate, navigate_ui
+from cell import Maze
+from mouse import Mouse
+from floodFill import navigate, navigate_ui
+from mazes import build_preset_maze, PRESET_CONFIGURATIONS
 
-WIDTH, HEIGHT = 800, 800
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
+# Palette
+COLOR_BG = (235, 245, 235)
+COLOR_GRID = (180, 190, 180)
+COLOR_VISITED = (200, 220, 255)
+COLOR_WALL = (220, 20, 60)
+COLOR_TEXT = (100, 100, 100)
 
-MOVE_DISTANCE = 133
 
-class Mouse():
-    def __init__(self):
-        self.x = 5
-        self.y = HEIGHT - 5 - 125
-        self.orientation = 0
+def run_simulation(
+    maze_size: int = 10,
+    maze: Optional[Maze] = None,
+    step_delay: float = 0.25,
+    window_size: int = 800,
+) -> None:
+    """
+    Run the visual demonstration of the micromouse solving the maze.
 
-    def set_position_and_orientation(self, x, y, orientation):
-        if x == 0:
-            self.x = 5
+    Parameters:
+        maze_size: Maze dimension (used if maze is not provided).
+        maze: Pre-configured Maze instance. If None, loaded from presets.
+        step_delay: Seconds to wait between mouse moves.
+        window_size: Width and height of the Pygame window in pixels.
+    """
+    if maze is None:
+        if maze_size in PRESET_CONFIGURATIONS:
+            maze = build_preset_maze(maze_size)
         else:
-            self.x = x * MOVE_DISTANCE
+            raise ValueError(f"No preset for size {maze_size}. Provide a configured Maze object.")
 
-        if y == 0:
-            self.y = HEIGHT - 5 - 125
-        else:
-            self.y = HEIGHT - y * MOVE_DISTANCE - 5 - 125
+    # Check for pygame availability
+    try:
+        import pygame
+    except ImportError:
+        print("Pygame is not installed. To run the visual demo, install it with: pip install pygame")
+        print(f"Running console navigation for {maze.size}x{maze.size} maze instead:")
+        navigate(Mouse(), maze, verbose=True)
+        return
 
-        self.orientation = orientation
+    # Solve trajectory
+    path = navigate_ui(Mouse(), maze)
 
-    # def move_up(self):
-    #     self.y -= MOVE_DISTANCE
-    # def move_down(self):
-    #     self.y += MOVE_DISTANCE
-    # def move_left(self):
-    #     self.x -= MOVE_DISTANCE
-    # def move_right(self):
-    #     self.x += MOVE_DISTANCE
-    #
-    # def turn_left(self):
-    #     self.orientation = (self.orientation - 1) % 4
-    # def turn_right(self):
-    #     self.orientation = (self.orientation + 1) % 4
-    # def turn_around(self):
-    #     self.turn_right()
-    #     self.turn_right()
-
-WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Maze Generator")
-
-MOUSE_IMAGE = pygame.image.load(os.path.join("ui_assets", "mouse.png"))
-MOUSE_IMAGE = pygame.transform.scale(MOUSE_IMAGE, (WIDTH // 6, HEIGHT // 6))
-
-m = M()
-mouse = Mouse()
-
-
-def make_maze(dim):
-    maze = create_empty_maze(dim)
-    wall_arrangement_x6(maze)
-    return maze
-
-maze = make_maze(6)
-
-def draw_grid(dim, mouse):
-    WIN.fill(GREEN)
-    for i in range(dim):
-        pygame.draw.line(WIN, BLACK, (i * WIDTH // dim, 0), (i * WIDTH // dim, HEIGHT))
-        pygame.draw.line(WIN, BLACK, (0, i * HEIGHT // dim), (WIDTH, i * HEIGHT // dim))
-
-    font = pygame.font.Font(None, 24)
-
-    for row in maze.cells:
-        for cell in row:
-            cell_x = cell.x
-            cell_y = dim - 1 - cell.y
-
-            if cell.is_north_wall:
-                pygame.draw.line(WIN, RED, (cell_x * WIDTH // dim, cell_y * HEIGHT // dim),
-                                 ((cell_x + 1) * WIDTH // dim, cell_y * HEIGHT // dim), 6)
-            if cell.is_south_wall:
-                pygame.draw.line(WIN, RED, (cell_x * WIDTH // dim, (cell_y + 1) * HEIGHT // dim),
-                                 ((cell_x + 1) * WIDTH // dim, (cell_y + 1) * HEIGHT // dim), 6)
-            if cell.is_west_wall:
-                pygame.draw.line(WIN, RED, (cell_x * WIDTH // dim, cell_y * HEIGHT // dim),
-                                 (cell_x * WIDTH // dim, (cell_y + 1) * HEIGHT // dim), 4)
-            if cell.is_east_wall:
-                pygame.draw.line(WIN, RED, ((cell_x + 1) * WIDTH // dim, cell_y * HEIGHT // dim),
-                                 ((cell_x + 1) * WIDTH // dim, (cell_y + 1) * HEIGHT // dim), 6)
-
-            text = font.render(f"{cell_x}, {cell_y}", True, RED)
-            text_rect = text.get_rect(center=(
-                (cell.x * WIDTH // dim) + (WIDTH // dim) // 2,
-                (cell.y * HEIGHT // dim) + (HEIGHT // dim) // 2
-            ))
-            WIN.blit(text, text_rect)
-
-    # Draw the mouse at its position
-    if mouse.orientation == 0:
-        WIN.blit(pygame.transform.rotate(MOUSE_IMAGE, 0), (mouse.x, mouse.y))
-    elif mouse.orientation == 1:
-        WIN.blit(pygame.transform.rotate(MOUSE_IMAGE, -90), (mouse.x, mouse.y))
-    elif mouse.orientation == 2:
-        WIN.blit(pygame.transform.rotate(MOUSE_IMAGE, 180), (mouse.x, mouse.y))
-    elif mouse.orientation == 3:
-        WIN.blit(pygame.transform.rotate(MOUSE_IMAGE, 90), (mouse.x, mouse.y))
-
-
-
-    pygame.display.update()
-
-
-def move_mouse(mouse_pos, keys_pressed):
-    if keys_pressed[pygame.K_LEFT]:
-        mouse_pos[0] -= 5
-    if keys_pressed[pygame.K_RIGHT]:
-        mouse_pos[0] += 5
-    if keys_pressed[pygame.K_UP]:
-        mouse_pos[1] -= 5
-    if keys_pressed[pygame.K_DOWN]:
-        mouse_pos[1] += 5
-
-def main():
-
-    clock = pygame.time.Clock()
-    run = True
+    # Initialize Pygame display
     pygame.init()
+    win = pygame.display.set_mode((window_size, window_size))
+    pygame.display.set_caption(f"Micromouse Flood-Fill Demo ({maze.size}x{maze.size})")
 
-    path = navigate_ui(m, maze)
+    # Load and scale mouse icon
+    dim = maze.size
+    cell_size = window_size // dim
+    mouse_w = max(12, int(cell_size * 0.75))
+    mouse_h = max(12, int(cell_size * 0.75))
 
-    # while run:
-    #     clock.tick(60)
-    #
-    #     for event in pygame.event.get():
-    #         # if event.type == pygame.KEYDOWN:
-    #         #     if event.key == pygame.K_UP:
-    #         #         mouse.y -= MOVE_DISTANCE
-    #         #         time.sleep(0.5)
-    #         #     if event.key == pygame.K_DOWN:
-    #         #         mouse.y += MOVE_DISTANCE
-    #         #     if event.key == pygame.K_LEFT:
-    #         #         mouse.x -= MOVE_DISTANCE
-    #         #     if event.key == pygame.K_RIGHT:
-    #         #         mouse.x += MOVE_DISTANCE
-    #
-    #             # if event.key == pygame.K_0:
-    #
-    #
-    #         if event.type == pygame.QUIT:
-    #             run = False
-    #
-    #     draw_grid(6, mouse)
-    #
+    asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_assets", "mouse.png")
+    mouse_surface = None
+    if os.path.exists(asset_path):
+        try:
+            raw_img = pygame.image.load(asset_path)
+            mouse_surface = pygame.transform.scale(raw_img, (mouse_w, mouse_h))
+        except Exception:
+            mouse_surface = None
 
-    mouse.set_position_and_orientation(0, 0, 0)
-    print(mouse.x, mouse.y, mouse.orientation)
-    draw_grid(6, mouse)
-    time.sleep(1)
-    for i in path:
-        clock.tick(60)
-        # print(i[0], i[1], i[2])
+    # Fallback mouse graphic if asset missing
+    if mouse_surface is None:
+        mouse_surface = pygame.Surface((mouse_w, mouse_h), pygame.SRCALPHA)
+        pygame.draw.polygon(mouse_surface, (50, 100, 220), [
+            (mouse_w // 2, 0),
+            (0, mouse_h),
+            (mouse_w, mouse_h),
+        ])
 
-        mouse.set_position_and_orientation(i[0], i[1], i[2])
-        print(mouse.x, mouse.y, mouse.orientation)
-        draw_grid(6, mouse)
-        time.sleep(1)
+    font = pygame.font.Font(None, max(14, cell_size // 4))
+    visited_cells = set()
+    clock = pygame.time.Clock()
+
+    def draw_state(cur_x: int, cur_y: int, cur_orient: int) -> None:
+        win.fill(COLOR_BG)
+
+        # Draw visited cell backgrounds
+        for vx, vy in visited_cells:
+            rect = (vx * cell_size, (dim - 1 - vy) * cell_size, cell_size, cell_size)
+            pygame.draw.rect(win, COLOR_VISITED, rect)
+
+        # Draw grid lines
+        for i in range(dim + 1):
+            pos = i * cell_size
+            pygame.draw.line(win, COLOR_GRID, (pos, 0), (pos, window_size), 1)
+            pygame.draw.line(win, COLOR_GRID, (0, pos), (window_size, pos), 1)
+
+        # Draw maze walls
+        wall_thickness = max(2, min(6, cell_size // 10))
+        for row in maze.cells:
+            for cell in row:
+                cx = cell.x
+                cy = dim - 1 - cell.y
+                x0 = cx * cell_size
+                y0 = cy * cell_size
+                x1 = (cx + 1) * cell_size
+                y1 = (cy + 1) * cell_size
+
+                if cell.is_north_wall:
+                    pygame.draw.line(win, COLOR_WALL, (x0, y0), (x1, y0), wall_thickness)
+                if cell.is_south_wall:
+                    pygame.draw.line(win, COLOR_WALL, (x0, y1), (x1, y1), wall_thickness)
+                if cell.is_west_wall:
+                    pygame.draw.line(win, COLOR_WALL, (x0, y0), (x0, y1), wall_thickness)
+                if cell.is_east_wall:
+                    pygame.draw.line(win, COLOR_WALL, (x1, y0), (x1, y1), wall_thickness)
+
+                # Optional cell coordinates
+                if cell_size >= 40:
+                    lbl = font.render(f"{cell.x},{cell.y}", True, COLOR_TEXT)
+                    win.blit(lbl, (x0 + 4, y0 + 4))
+
+        # Rotate and draw mouse
+        # Orientation: 0: North, 1: East, 2: South, 3: West
+        rotations = {0: 0, 1: -90, 2: 180, 3: 90}
+        rotated_mouse = pygame.transform.rotate(mouse_surface, rotations.get(cur_orient, 0))
+        mouse_rect = rotated_mouse.get_rect(
+            center=(
+                cur_x * cell_size + cell_size // 2,
+                (dim - 1 - cur_y) * cell_size + cell_size // 2,
+            )
+        )
+        win.blit(rotated_mouse, mouse_rect)
+        pygame.display.flip()
+
+    # Step-by-step animation
+    steps = [[0, 0, 0]] + path
+    running = True
+
+    for step_x, step_y, step_orient in steps:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                break
+        if not running:
+            break
+
+        visited_cells.add((step_x, step_y))
+        draw_state(step_x, step_y, step_orient)
+        pygame.time.delay(int(step_delay * 1000))
+
+    # Keep window open until closed by user
+    while running:
+        clock.tick(15)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
     pygame.quit()
+
+
+def main() -> None:
+    size = 10
+    if len(sys.argv) > 1:
+        try:
+            size = int(sys.argv[1])
+        except ValueError:
+            pass
+    run_simulation(maze_size=size)
 
 
 if __name__ == "__main__":

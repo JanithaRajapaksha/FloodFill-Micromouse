@@ -1,18 +1,23 @@
-from cell import Cell, Maze
+"""
+Main entry point for Micromouse Flood-Fill algorithm demonstration.
+"""
+
+from cell import Cell, Maze, create_empty_maze
 from mouse import Mouse
-
-from floodFill import create_empty_maze, wall_arrangement_x5, wall_arrangement_x6, wall_arrangement_10x10, flood_fill, navigate, navigate_ui
-
-MAX_LENGTH = 10
+from floodFill import flood_fill, navigate, navigate_ui
+from mazes import wall_arrangement_10x10, build_preset_maze
 
 
-maze1 = create_empty_maze(MAX_LENGTH)
-wall_arrangement_10x10(maze1)
-centers = maze1.get_centers()
-flood_fill(maze1, centers)
+def main() -> None:
+    maze_size = 10
+    maze = build_preset_maze(maze_size)
 
-mouse = Mouse()
-maze = maze1
+    # Initial flood fill from goal center
+    flood_fill(maze, maze.get_centers())
 
-navigate(mouse, maze)
-# print(navigate_ui(mouse, maze))
+    mouse = Mouse()
+    navigate(mouse, maze)
+
+
+if __name__ == "__main__":
+    main()

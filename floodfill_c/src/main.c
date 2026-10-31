@@ -47,9 +47,7 @@ int main(void) {
         (void)m_cmd; // Motor command ready for HAL driver dispatch
 
         if (cmd == NAV_CMD_STOP) {
-            printf("No accessible neighbor found for cell (%d, %d) with value -1. Reapplying flood fill.\n",
-                   nav.x, nav.y);
-            printf("( %d ,  %d )    %d\n", nav.x, nav.y, (int)nav.orientation);
+            printf("Goal reached at (%d, %d)!\n", nav.x, nav.y);
             break;
         }
 

@@ -101,6 +101,12 @@ def navigate(mouse: Mouse, testing_maze: Maze, verbose: bool = True) -> List[Lis
         empty_maze.reset_values()
         flood_fill(empty_maze, goal_cells)
 
+        # Check if goal has been reached
+        if current_cell.value == 0:
+            if verbose:
+                print(f"Goal reached at ({mouse.x}, {mouse.y})!")
+            break
+
         next_cell_value = current_cell.value - 1
         accessible_neighbors = []
 
@@ -127,10 +133,6 @@ def navigate(mouse: Mouse, testing_maze: Maze, verbose: bool = True) -> List[Lis
         if next_cell is None:
             if verbose:
                 print(f"No accessible neighbor found for cell ({mouse.x}, {mouse.y}) with value {next_cell_value}. Reapplying flood fill.")
-            if current_cell.value == 0:
-                if verbose:
-                    print("(", mouse.x, ", ", mouse.y, ")   ", mouse.orientation)
-                break
 
             # Fallback if in local minimum
             empty_maze.reset_values()

@@ -1,9 +1,36 @@
-# ignore python cache files everywhere in the repo
-__pycache__/**
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
 
-# C build artifacts
-floodfill_c/obj/
-floodfill_c/bin/
-floodfill_cpp/obj/
-floodfill_cpp/bin/
+# C/C++ Build artifacts
 *.o
+*.obj
+*.so
+*.dylib
+*.a
+bin/
+obj/
+floodfill_c/bin/
+floodfill_c/obj/
+floodfill_cpp/bin/
+floodfill_cpp/obj/
+
+# PlatformIO & Embedded artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+.venv/
+venv/
+env/

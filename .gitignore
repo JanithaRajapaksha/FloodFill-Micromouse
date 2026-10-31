@@ -14,8 +14,6 @@ bin/
 obj/
 floodfill_c/bin/
 floodfill_c/obj/
-floodfill_cpp/bin/
-floodfill_cpp/obj/
 
 # PlatformIO & Embedded artifacts
 .pio/

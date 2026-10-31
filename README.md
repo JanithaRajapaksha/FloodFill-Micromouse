@@ -82,9 +82,6 @@ FloodFill-Micromouse/
 │   ├── tests/               # C unit test suite (63 assertions)
 │   ├── Makefile             # C library build system (all, test, run, asan, clean)
 │   └── README.md            # Embedded C module documentation
-├── floodfill_cpp/           # Build wrapper forwarding targets to floodfill_c
-│   ├── Makefile             # Delegating Makefile
-│   └── README.md            # Forwarding documentation
 ├── floodfill_py/            # Python reference implementation & visual demo
 │   ├── cell.py              # Grid and Cell representation
 │   ├── mouse.py             # Mouse kinematics model
@@ -207,3 +204,4 @@ Goal reached at (4, 4)!
 ## License
 
 This project is licensed under the MIT License.
+

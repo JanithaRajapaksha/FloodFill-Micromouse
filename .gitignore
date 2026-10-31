@@ -1,2 +1,9 @@
 # ignore python cache files everywhere in the repo
 __pycache__/**
+
+# C build artifacts
+floodfill_c/obj/
+floodfill_c/bin/
+floodfill_cpp/obj/
+floodfill_cpp/bin/
+*.o

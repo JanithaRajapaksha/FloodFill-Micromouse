@@ -1,21 +1,23 @@
 #ifndef MAZES_H
 #define MAZES_H
 
-#include "maze.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "maze_map.h"
 
 /**
- * Wall arrangement configurations for benchmark mazes.
+ * Static benchmark maze configurations.
+ * Statically populates an existing MazeMap instance without any dynamic allocations.
  */
-void wall_arrangement_5x5(Maze *maze);
-void wall_arrangement_6x6(Maze *maze);
-void wall_arrangement_10x10(Maze *maze);
-void wall_arrangement_16x16(Maze *maze);
+void wall_arrangement_5x5(MazeMap *map);
+void wall_arrangement_6x6(MazeMap *map);
+void wall_arrangement_10x10(MazeMap *map);
+void wall_arrangement_16x16(MazeMap *map);
 
 /**
- * Build and return a fully configured maze of the given size (5, 6, 10, or 16).
- * Returns NULL if the size is unsupported.
+ * Initialize and populate a MazeMap with a preset configuration (5, 6, 10, or 16).
+ * Returns true if the size is supported and initialized, false otherwise.
  */
-Maze* build_preset_maze(int size);
+bool build_preset_maze(MazeMap *map, uint8_t size);
 
 #endif /* MAZES_H */
-

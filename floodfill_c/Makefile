@@ -9,16 +9,22 @@ TESTDIR = tests
 OBJDIR = obj
 BINDIR = bin
 
-COMMON_SRCS = $(SRCDIR)/maze.c $(SRCDIR)/mouse.c $(SRCDIR)/floodfill.c $(SRCDIR)/mazes.c
+COMMON_SRCS = $(SRCDIR)/maze_map.c \
+              $(SRCDIR)/floodfill_core.c \
+              $(SRCDIR)/sensor_interface.c \
+              $(SRCDIR)/navigator.c \
+              $(SRCDIR)/motor_controller.c \
+              $(SRCDIR)/mazes.c
+
 COMMON_OBJS = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(COMMON_SRCS))
 
 MAIN_SRC = $(SRCDIR)/main.c
 MAIN_OBJ = $(OBJDIR)/main.o
 MAIN_BIN = $(BINDIR)/main
 
-TEST_SRC = $(TESTDIR)/test_floodfill.c
-TEST_OBJ = $(OBJDIR)/test_floodfill.o
-TEST_BIN = $(BINDIR)/test_floodfill
+TEST_SRC = $(TESTDIR)/test_embedded.c
+TEST_OBJ = $(OBJDIR)/test_embedded.o
+TEST_BIN = $(BINDIR)/test_embedded
 
 .PHONY: all clean test run asan
 

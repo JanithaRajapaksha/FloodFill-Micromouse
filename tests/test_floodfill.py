@@ -220,6 +220,39 @@ class TestFloodFillRegression(unittest.TestCase):
             final_cell = maze[path[-1][0], path[-1][1]]
             self.assertIn(final_cell, centers)
 
+    def test_compact_binary_mazes(self):
+        from mazes import load_bin_maze, save_bin_maze
+        mazes_dir = os.path.join(os.path.dirname(__file__), "..", "floodfill_py", "mazes")
+        for name in ["example1", "example2", "example3", "example4", "example5", "blank"]:
+            bin_path = os.path.join(mazes_dir, f"{name}.bin")
+            self.assertTrue(os.path.exists(bin_path))
+            bin_maze = load_bin_maze(bin_path)
+            preset_maze = build_preset_maze(name)
+            self.assertEqual(bin_maze.size, preset_maze.size)
+            for y in range(preset_maze.size):
+                for x in range(preset_maze.size):
+                    self.assertEqual(bin_maze[x, y].is_north_wall, preset_maze[x, y].is_north_wall)
+                    self.assertEqual(bin_maze[x, y].is_south_wall, preset_maze[x, y].is_south_wall)
+                    self.assertEqual(bin_maze[x, y].is_east_wall, preset_maze[x, y].is_east_wall)
+                    self.assertEqual(bin_maze[x, y].is_west_wall, preset_maze[x, y].is_west_wall)
+
+        # Roundtrip save & load test
+        tmp_bin = "test_roundtrip.bin"
+        try:
+            m = build_preset_maze("example4")
+            save_bin_maze(m, tmp_bin)
+            reloaded = load_bin_maze(tmp_bin)
+            self.assertEqual(reloaded.size, m.size)
+            for y in range(m.size):
+                for x in range(m.size):
+                    self.assertEqual(reloaded[x, y].is_north_wall, m[x, y].is_north_wall)
+                    self.assertEqual(reloaded[x, y].is_south_wall, m[x, y].is_south_wall)
+                    self.assertEqual(reloaded[x, y].is_east_wall, m[x, y].is_east_wall)
+                    self.assertEqual(reloaded[x, y].is_west_wall, m[x, y].is_west_wall)
+        finally:
+            if os.path.exists(tmp_bin):
+                os.remove(tmp_bin)
+
 
 if __name__ == "__main__":
     unittest.main()

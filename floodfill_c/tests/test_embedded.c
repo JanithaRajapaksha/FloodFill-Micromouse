@@ -324,6 +324,55 @@ static void test_mms_example_presets(void) {
     printf("PASS: test_mms_example_presets\n");
 }
 
+static void test_compact_binary_mazes(void) {
+    // 1. Verify binary load matches preset for all example mazes
+    const char *names[] = {"example1", "example2", "example3", "example4", "example5", "blank"};
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        MazeMap map_preset;
+        build_preset_mms_maze(&map_preset, names[i]);
+
+        char path[128];
+        snprintf(path, sizeof(path), "floodfill_c/mazes/%s.bin", names[i]);
+
+        MazeMap map_bin;
+        bool loaded = maze_map_load_bin_file(&map_bin, path);
+        TEST_ASSERT(loaded, "Failed to load binary maze file");
+        TEST_ASSERT(map_bin.size == map_preset.size, "Size mismatch between binary and preset");
+
+        for (uint8_t y = 0; y < 16; y++) {
+            for (uint8_t x = 0; x < 16; x++) {
+                for (int d = 0; d < 4; d++) {
+                    Direction dir = (Direction)d;
+                    bool w_preset = maze_map_has_wall(&map_preset, x, y, dir);
+                    bool w_bin = maze_map_has_wall(&map_bin, x, y, dir);
+                    TEST_ASSERT(w_preset == w_bin, "Wall mismatch between binary and preset");
+                }
+            }
+        }
+    }
+
+    // 2. Round-trip save and reload test
+    MazeMap original;
+    build_preset_mms_maze(&original, "example3");
+    const char *tmp_file = "test_roundtrip.bin";
+    TEST_ASSERT(maze_map_save_bin_file(&original, tmp_file), "Failed to save binary maze");
+
+    MazeMap reloaded;
+    TEST_ASSERT(maze_map_load_bin_file(&reloaded, tmp_file), "Failed to reload saved binary maze");
+    remove(tmp_file);
+
+    for (uint8_t y = 0; y < 16; y++) {
+        for (uint8_t x = 0; x < 16; x++) {
+            for (int d = 0; d < 4; d++) {
+                TEST_ASSERT(maze_map_has_wall(&original, x, y, (Direction)d) ==
+                            maze_map_has_wall(&reloaded, x, y, (Direction)d),
+                            "Roundtrip wall mismatch");
+            }
+        }
+    }
+    printf("PASS: test_compact_binary_mazes\n");
+}
+
 int main(void) {
     printf("=========================================\n");
     printf("Running Embedded Flood-Fill Test Suite...\n");
@@ -336,6 +385,7 @@ int main(void) {
     test_floodfill_gradient_distances();
     test_end_to_end_navigation_trajectories();
     test_mms_example_presets();
+    test_compact_binary_mazes();
 
     printf("\nTotal assertions checked: %d\n", g_tests_run);
     if (g_tests_failed == 0) {

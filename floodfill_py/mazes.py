@@ -1,1302 +1,237 @@
-from typing import Union
 """
-Preset maze wall configurations for Micromouse flood-fill simulations.
-Includes standard 5x5, 6x6, 10x10, and 16x16 maze layouts.
+Optimized and Compact Micromouse Mazes representation and presets.
+
+Each 16x16 maze is stored as a 68-byte bitmask (horizontal + vertical wall segments).
+Guarantees 100% wall symmetry, minimal memory footprint, and instantaneous unpacking.
 """
-
-from cell import Cell, Maze, create_empty_maze
-
-
-def wall_arrangement_x5(maze: Maze) -> None:
-    """Wall arrangement for a 5x5 maze."""
-    maze[0, 0].set_east_wall(maze)
-    maze[2, 0].set_north_wall(maze)
-    maze[2, 0].set_east_wall(maze)
-    maze[3, 0].set_north_wall(maze)
-    maze[2, 1].set_north_wall(maze)
-    maze[2, 1].set_east_wall(maze)
-    maze[0, 2].set_south_wall(maze)
-    maze[0, 2].set_east_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[3, 2].set_north_wall(maze)
-    maze[3, 2].set_east_wall(maze)
-    maze[0, 3].set_north_wall(maze)
-    maze[1, 4].set_east_wall(maze)
-    maze[3, 4].set_south_wall(maze)
-    maze[4, 4].set_south_wall(maze)
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_x6(maze: Maze) -> None:
-    """Wall arrangement for a 6x6 maze."""
-    maze[2, 0].set_north_wall(maze)
-    maze[3, 0].set_north_wall(maze)
-    maze[4, 0].set_east_wall(maze)
-    maze[5, 0].set_west_wall(maze)
-    maze[0, 1].set_east_wall(maze)
-    maze[2, 1].set_north_wall(maze)
-    maze[3, 1].set_north_wall(maze)
-    maze[4, 1].set_west_wall(maze)
-    maze[5, 1].set_west_wall(maze)
-    maze[0, 2].set_east_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[3, 2].set_east_wall(maze)
-    maze[4, 2].set_north_wall(maze)
-    maze[5, 2].set_north_wall(maze)
-    maze[1, 3].set_north_wall(maze)
-    maze[1, 3].set_east_wall(maze)
-    maze[2, 3].set_north_wall(maze)
-    maze[3, 3].set_east_wall(maze)
-    maze[1, 4].set_north_wall(maze)
-    maze[2, 4].set_north_wall(maze)
-    maze[3, 4].set_north_wall(maze)
-    maze[4, 4].set_east_wall(maze)
-    maze[4, 5].set_east_wall(maze)
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_10x10(maze: Maze) -> None:
-    """Wall arrangement for a 10x10 maze."""
-    # Row 0
-    maze[0, 1].set_east_wall(maze)
-    maze[0, 3].set_north_wall(maze)
-    maze[0, 4].set_west_wall(maze)
-    maze[0, 6].set_east_wall(maze)
-
-    # Row 1
-    maze[1, 0].set_east_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[1, 5].set_north_wall(maze)
-    maze[1, 6].set_west_wall(maze)
-
-    # Row 2
-    maze[2, 1].set_north_wall(maze)
-    maze[2, 3].set_east_wall(maze)
-    maze[2, 4].set_west_wall(maze)
-    maze[2, 6].set_west_wall(maze)
-
-    # Row 3
-    maze[3, 2].set_east_wall(maze)
-    maze[3, 3].set_north_wall(maze)
-    maze[3, 4].set_north_wall(maze)
-    maze[3, 5].set_west_wall(maze)
-    maze[3, 7].set_east_wall(maze)
-
-    # Row 4
-    maze[4, 2].set_east_wall(maze)
-    maze[4, 3].set_north_wall(maze)
-    maze[4, 4].set_north_wall(maze)
-    maze[4, 5].set_west_wall(maze)
-    maze[4, 7].set_west_wall(maze)
-
-    # Row 5
-    maze[5, 2].set_east_wall(maze)
-    maze[5, 3].set_south_wall(maze)
-    maze[5, 4].set_south_wall(maze)
-    maze[5, 5].set_west_wall(maze)
-    maze[5, 8].set_west_wall(maze)
-
-    # Row 6
-    maze[6, 3].set_north_wall(maze)
-    maze[6, 4].set_west_wall(maze)
-    maze[6, 6].set_east_wall(maze)
-    maze[6, 7].set_east_wall(maze)
-
-    # Row 7
-    maze[7, 1].set_north_wall(maze)
-    maze[7, 3].set_north_wall(maze)
-    maze[7, 5].set_north_wall(maze)
-    maze[7, 8].set_west_wall(maze)
-
-    # Row 8
-    maze[8, 2].set_north_wall(maze)
-    maze[8, 4].set_east_wall(maze)
-    maze[8, 6].set_east_wall(maze)
-    maze[8, 7].set_east_wall(maze)
-
-    # Row 9
-    maze[9, 0].set_north_wall(maze)
-    maze[9, 5].set_west_wall(maze)
-    maze[9, 8].set_north_wall(maze)
-
-    # Guard the center goal cells
-    maze[4, 4].set_south_wall(maze)
-    maze[4, 5].set_south_wall(maze)
-    maze[5, 4].set_north_wall(maze)
-    maze[5, 5].set_north_wall(maze)
-    maze[4, 3].set_west_wall(maze)
-    maze[4, 6].set_east_wall(maze)
-    maze[5, 3].set_west_wall(maze)
-    maze[5, 6].set_east_wall(maze)
-
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_16x16(maze: Maze) -> None:
-    """Wall arrangement for a 16x16 maze."""
-    # Column 0
-    maze[0, 0].set_east_wall(maze)
-    maze[0, 1].set_east_wall(maze)
-    maze[0, 4].set_east_wall(maze)
-    maze[0, 5].set_east_wall(maze)
-    maze[0, 6].set_east_wall(maze)
-    maze[0, 7].set_east_wall(maze)
-    maze[0, 8].set_east_wall(maze)
-    maze[0, 9].set_east_wall(maze)
-    maze[0, 10].set_east_wall(maze)
-    maze[0, 11].set_east_wall(maze)
-    maze[0, 14].set_east_wall(maze)
-    maze[0, 15].set_east_wall(maze)
-
-    # Column 1
-    maze[1, 1].set_east_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[1, 2].set_north_wall(maze)
-    maze[1, 3].set_east_wall(maze)
-    maze[1, 4].set_east_wall(maze)
-    maze[1, 5].set_east_wall(maze)
-    maze[1, 6].set_east_wall(maze)
-    maze[1, 7].set_east_wall(maze)
-    maze[1, 8].set_east_wall(maze)
-    maze[1, 9].set_east_wall(maze)
-    maze[1, 10].set_east_wall(maze)
-    maze[1, 11].set_east_wall(maze)
-    maze[1, 12].set_east_wall(maze)
-    maze[1, 12].set_north_wall(maze)
-    maze[1, 13].set_east_wall(maze)
-    maze[1, 14].set_east_wall(maze)
-
-    # Column 2
-    maze[2, 0].set_north_wall(maze)
-    maze[2, 1].set_north_wall(maze)
-    maze[2, 3].set_east_wall(maze)
-    maze[2, 4].set_east_wall(maze)
-    maze[2, 5].set_east_wall(maze)
-    maze[2, 6].set_east_wall(maze)
-    maze[2, 8].set_east_wall(maze)
-    maze[2, 9].set_east_wall(maze)
-    maze[2, 10].set_east_wall(maze)
-    maze[2, 11].set_east_wall(maze)
-    maze[2, 12].set_east_wall(maze)
-    maze[2, 13].set_north_wall(maze)
-    maze[2, 14].set_north_wall(maze)
-
-    # Column 3
-    maze[3, 0].set_north_wall(maze)
-    maze[3, 1].set_north_wall(maze)
-    maze[3, 2].set_north_wall(maze)
-    maze[3, 4].set_east_wall(maze)
-    maze[3, 5].set_east_wall(maze)
-    maze[3, 6].set_east_wall(maze)
-    maze[3, 8].set_east_wall(maze)
-    maze[3, 9].set_east_wall(maze)
-    maze[3, 10].set_east_wall(maze)
-    maze[3, 11].set_east_wall(maze)
-    maze[3, 12].set_north_wall(maze)
-    maze[3, 13].set_north_wall(maze)
-    maze[3, 14].set_north_wall(maze)
-
-    # Column 4
-    maze[4, 1].set_north_wall(maze)
-    maze[4, 2].set_north_wall(maze)
-    maze[4, 3].set_north_wall(maze)
-    maze[4, 4].set_north_wall(maze)
-    maze[4, 5].set_east_wall(maze)
-    maze[4, 6].set_east_wall(maze)
-    maze[4, 8].set_east_wall(maze)
-    maze[4, 9].set_east_wall(maze)
-    maze[4, 10].set_east_wall(maze)
-    maze[4, 11].set_north_wall(maze)
-    maze[4, 12].set_north_wall(maze)
-    maze[4, 13].set_north_wall(maze)
-    maze[4, 14].set_north_wall(maze)
-
-    # Column 5
-    maze[5, 0].set_north_wall(maze)
-    maze[5, 1].set_north_wall(maze)
-    maze[5, 2].set_north_wall(maze)
-    maze[5, 3].set_north_wall(maze)
-    maze[5, 4].set_north_wall(maze)
-    maze[5, 5].set_east_wall(maze)
-    maze[5, 6].set_east_wall(maze)
-    maze[5, 8].set_east_wall(maze)
-    maze[5, 9].set_east_wall(maze)
-    maze[5, 10].set_north_wall(maze)
-    maze[5, 11].set_north_wall(maze)
-    maze[5, 12].set_north_wall(maze)
-    maze[5, 13].set_north_wall(maze)
-    maze[5, 14].set_north_wall(maze)
-
-    # Column 6
-    maze[6, 0].set_north_wall(maze)
-    maze[6, 1].set_north_wall(maze)
-    maze[6, 2].set_north_wall(maze)
-    maze[6, 3].set_north_wall(maze)
-    maze[6, 4].set_north_wall(maze)
-    maze[6, 5].set_north_wall(maze)
-    maze[6, 8].set_east_wall(maze)
-    maze[6, 9].set_north_wall(maze)
-    maze[6, 10].set_north_wall(maze)
-    maze[6, 11].set_north_wall(maze)
-    maze[6, 12].set_north_wall(maze)
-    maze[6, 13].set_north_wall(maze)
-    maze[6, 14].set_north_wall(maze)
-
-    # Column 7
-    maze[7, 0].set_north_wall(maze)
-    maze[7, 1].set_north_wall(maze)
-    maze[7, 1].set_east_wall(maze)
-    maze[7, 2].set_north_wall(maze)
-    maze[7, 3].set_north_wall(maze)
-    maze[7, 4].set_north_wall(maze)
-    maze[7, 5].set_north_wall(maze)
-    maze[7, 6].set_north_wall(maze)
-    maze[7, 8].set_north_wall(maze)
-    maze[7, 9].set_north_wall(maze)
-    maze[7, 10].set_north_wall(maze)
-    maze[7, 10].set_east_wall(maze)
-    maze[7, 11].set_north_wall(maze)
-    maze[7, 11].set_east_wall(maze)
-    maze[7, 12].set_north_wall(maze)
-    maze[7, 14].set_north_wall(maze)
-
-    # Column 8
-    maze[8, 0].set_north_wall(maze)
-    maze[8, 2].set_north_wall(maze)
-    maze[8, 4].set_north_wall(maze)
-    maze[8, 6].set_north_wall(maze)
-    maze[8, 7].set_east_wall(maze)
-    maze[8, 8].set_east_wall(maze)
-    maze[8, 8].set_north_wall(maze)
-    maze[8, 9].set_north_wall(maze)
-    maze[8, 10].set_north_wall(maze)
-    maze[8, 11].set_north_wall(maze)
-    maze[8, 12].set_north_wall(maze)
-    maze[8, 13].set_north_wall(maze)
-    maze[8, 14].set_north_wall(maze)
-
-    # Column 9
-    maze[9, 0].set_north_wall(maze)
-    maze[9, 1].set_north_wall(maze)
-    maze[9, 2].set_north_wall(maze)
-    maze[9, 3].set_north_wall(maze)
-    maze[9, 4].set_north_wall(maze)
-    maze[9, 5].set_north_wall(maze)
-    maze[9, 6].set_east_wall(maze)
-    maze[9, 7].set_east_wall(maze)
-    maze[9, 8].set_east_wall(maze)
-    maze[9, 9].set_east_wall(maze)
-    maze[9, 9].set_north_wall(maze)
-    maze[9, 10].set_north_wall(maze)
-    maze[9, 11].set_north_wall(maze)
-    maze[9, 12].set_north_wall(maze)
-    maze[9, 13].set_north_wall(maze)
-
-    # Column 10
-    maze[10, 0].set_north_wall(maze)
-    maze[10, 1].set_north_wall(maze)
-    maze[10, 2].set_north_wall(maze)
-    maze[10, 3].set_north_wall(maze)
-    maze[10, 4].set_north_wall(maze)
-    maze[10, 5].set_east_wall(maze)
-    maze[10, 6].set_east_wall(maze)
-    maze[10, 8].set_east_wall(maze)
-    maze[10, 9].set_east_wall(maze)
-    maze[10, 10].set_east_wall(maze)
-    maze[10, 10].set_north_wall(maze)
-    maze[10, 11].set_north_wall(maze)
-    maze[10, 13].set_east_wall(maze)
-    maze[10, 13].set_north_wall(maze)
-    maze[10, 14].set_north_wall(maze)
-
-    # Column 11
-    maze[11, 0].set_north_wall(maze)
-    maze[11, 1].set_north_wall(maze)
-    maze[11, 2].set_north_wall(maze)
-    maze[11, 3].set_north_wall(maze)
-    maze[11, 4].set_east_wall(maze)
-    maze[11, 5].set_east_wall(maze)
-    maze[11, 6].set_east_wall(maze)
-    maze[11, 7].set_east_wall(maze)
-    maze[11, 8].set_east_wall(maze)
-    maze[11, 10].set_east_wall(maze)
-    maze[11, 11].set_east_wall(maze)
-    maze[11, 11].set_north_wall(maze)
-    maze[11, 12].set_north_wall(maze)
-    maze[11, 14].set_north_wall(maze)
-
-    # Column 12
-    maze[12, 0].set_north_wall(maze)
-    maze[12, 1].set_north_wall(maze)
-    maze[12, 2].set_north_wall(maze)
-    maze[12, 2].set_east_wall(maze)
-    maze[12, 3].set_east_wall(maze)
-    maze[12, 4].set_east_wall(maze)
-    maze[12, 5].set_east_wall(maze)
-    maze[12, 6].set_east_wall(maze)
-    maze[12, 7].set_east_wall(maze)
-    maze[12, 8].set_east_wall(maze)
-    maze[12, 9].set_east_wall(maze)
-    maze[12, 10].set_east_wall(maze)
-    maze[12, 11].set_east_wall(maze)
-    maze[12, 11].set_north_wall(maze)
-    maze[12, 12].set_east_wall(maze)
-    maze[12, 12].set_north_wall(maze)
-    maze[12, 13].set_north_wall(maze)
-
-    # Column 13
-    maze[13, 0].set_north_wall(maze)
-    maze[13, 1].set_north_wall(maze)
-    maze[13, 2].set_east_wall(maze)
-    maze[13, 3].set_east_wall(maze)
-    maze[13, 4].set_east_wall(maze)
-    maze[13, 5].set_east_wall(maze)
-    maze[13, 7].set_east_wall(maze)
-    maze[13, 8].set_east_wall(maze)
-    maze[13, 9].set_east_wall(maze)
-    maze[13, 10].set_east_wall(maze)
-    maze[13, 11].set_east_wall(maze)
-    maze[13, 12].set_east_wall(maze)
-    maze[13, 13].set_east_wall(maze)
-    maze[13, 13].set_north_wall(maze)
-    maze[13, 14].set_north_wall(maze)
-
-    # Column 14
-    maze[14, 0].set_north_wall(maze)
-    maze[14, 1].set_north_wall(maze)
-    maze[14, 2].set_east_wall(maze)
-    maze[14, 3].set_east_wall(maze)
-    maze[14, 5].set_east_wall(maze)
-    maze[14, 6].set_east_wall(maze)
-    maze[14, 7].set_east_wall(maze)
-    maze[14, 8].set_east_wall(maze)
-    maze[14, 9].set_east_wall(maze)
-    maze[14, 10].set_east_wall(maze)
-    maze[14, 11].set_east_wall(maze)
-    maze[14, 12].set_east_wall(maze)
-    maze[14, 13].set_east_wall(maze)
-    maze[14, 14].set_east_wall(maze)
-    maze[14, 14].set_north_wall(maze)
-
-    maze.update_all_wall_codes()
-
-
-
-
-def wall_arrangement_blank(maze: Maze) -> None:
-    """Wall arrangement for blank 16x16 maze (perimeter walls only)."""
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_example2(maze: Maze) -> None:
-    """Wall arrangement for example2.num (16x16)."""
-    maze[0, 0].set_north_wall(maze)
-    maze[0, 2].set_east_wall(maze)
-    maze[0, 5].set_east_wall(maze)
-    maze[0, 6].set_east_wall(maze)
-    maze[0, 7].set_east_wall(maze)
-    maze[0, 8].set_east_wall(maze)
-    maze[0, 9].set_north_wall(maze)
-    maze[0, 12].set_east_wall(maze)
-    maze[0, 13].set_east_wall(maze)
-    maze[0, 14].set_east_wall(maze)
-    maze[0, 15].set_east_wall(maze)
-    maze[1, 1].set_east_wall(maze)
-    maze[1, 2].set_north_wall(maze)
-    maze[1, 3].set_north_wall(maze)
-    maze[1, 4].set_east_wall(maze)
-    maze[1, 6].set_east_wall(maze)
-    maze[1, 7].set_east_wall(maze)
-    maze[1, 8].set_north_wall(maze)
-    maze[1, 9].set_north_wall(maze)
-    maze[1, 10].set_north_wall(maze)
-    maze[1, 12].set_east_wall(maze)
-    maze[1, 13].set_east_wall(maze)
-    maze[1, 14].set_east_wall(maze)
-    maze[2, 0].set_north_wall(maze)
-    maze[2, 2].set_north_wall(maze)
-    maze[2, 2].set_east_wall(maze)
-    maze[2, 3].set_east_wall(maze)
-    maze[2, 4].set_north_wall(maze)
-    maze[2, 5].set_east_wall(maze)
-    maze[2, 6].set_north_wall(maze)
-    maze[2, 8].set_north_wall(maze)
-    maze[2, 8].set_east_wall(maze)
-    maze[2, 9].set_east_wall(maze)
-    maze[2, 10].set_north_wall(maze)
-    maze[2, 10].set_east_wall(maze)
-    maze[2, 11].set_east_wall(maze)
-    maze[2, 13].set_east_wall(maze)
-    maze[2, 14].set_north_wall(maze)
-    maze[3, 0].set_north_wall(maze)
-    maze[3, 1].set_east_wall(maze)
-    maze[3, 2].set_east_wall(maze)
-    maze[3, 3].set_north_wall(maze)
-    maze[3, 4].set_east_wall(maze)
-    maze[3, 6].set_north_wall(maze)
-    maze[3, 6].set_east_wall(maze)
-    maze[3, 7].set_east_wall(maze)
-    maze[3, 9].set_north_wall(maze)
-    maze[3, 11].set_east_wall(maze)
-    maze[3, 12].set_north_wall(maze)
-    maze[3, 12].set_east_wall(maze)
-    maze[3, 14].set_north_wall(maze)
-    maze[3, 14].set_east_wall(maze)
-    maze[4, 1].set_east_wall(maze)
-    maze[4, 2].set_north_wall(maze)
-    maze[4, 3].set_east_wall(maze)
-    maze[4, 4].set_north_wall(maze)
-    maze[4, 5].set_east_wall(maze)
-    maze[4, 6].set_east_wall(maze)
-    maze[4, 7].set_east_wall(maze)
-    maze[4, 8].set_north_wall(maze)
-    maze[4, 8].set_east_wall(maze)
-    maze[4, 9].set_north_wall(maze)
-    maze[4, 10].set_north_wall(maze)
-    maze[4, 12].set_north_wall(maze)
-    maze[4, 13].set_east_wall(maze)
-    maze[4, 14].set_north_wall(maze)
-    maze[5, 1].set_north_wall(maze)
-    maze[5, 2].set_east_wall(maze)
-    maze[5, 3].set_north_wall(maze)
-    maze[5, 4].set_north_wall(maze)
-    maze[5, 6].set_east_wall(maze)
-    maze[5, 7].set_north_wall(maze)
-    maze[5, 9].set_north_wall(maze)
-    maze[5, 11].set_north_wall(maze)
-    maze[5, 11].set_east_wall(maze)
-    maze[5, 12].set_east_wall(maze)
-    maze[5, 13].set_east_wall(maze)
-    maze[5, 14].set_north_wall(maze)
-    maze[6, 0].set_north_wall(maze)
-    maze[6, 2].set_north_wall(maze)
-    maze[6, 2].set_east_wall(maze)
-    maze[6, 3].set_north_wall(maze)
-    maze[6, 4].set_north_wall(maze)
-    maze[6, 5].set_east_wall(maze)
-    maze[6, 6].set_north_wall(maze)
-    maze[6, 7].set_east_wall(maze)
-    maze[6, 8].set_north_wall(maze)
-    maze[6, 8].set_east_wall(maze)
-    maze[6, 9].set_east_wall(maze)
-    maze[6, 10].set_north_wall(maze)
-    maze[6, 12].set_east_wall(maze)
-    maze[6, 14].set_north_wall(maze)
-    maze[6, 14].set_east_wall(maze)
-    maze[7, 0].set_north_wall(maze)
-    maze[7, 2].set_east_wall(maze)
-    maze[7, 3].set_north_wall(maze)
-    maze[7, 3].set_east_wall(maze)
-    maze[7, 5].set_north_wall(maze)
-    maze[7, 6].set_north_wall(maze)
-    maze[7, 8].set_north_wall(maze)
-    maze[7, 10].set_north_wall(maze)
-    maze[7, 10].set_east_wall(maze)
-    maze[7, 11].set_north_wall(maze)
-    maze[7, 13].set_north_wall(maze)
-    maze[7, 13].set_east_wall(maze)
-    maze[8, 0].set_north_wall(maze)
-    maze[8, 1].set_east_wall(maze)
-    maze[8, 2].set_north_wall(maze)
-    maze[8, 4].set_north_wall(maze)
-    maze[8, 4].set_east_wall(maze)
-    maze[8, 6].set_north_wall(maze)
-    maze[8, 6].set_east_wall(maze)
-    maze[8, 7].set_east_wall(maze)
-    maze[8, 8].set_north_wall(maze)
-    maze[8, 9].set_north_wall(maze)
-    maze[8, 11].set_north_wall(maze)
-    maze[8, 11].set_east_wall(maze)
-    maze[8, 12].set_east_wall(maze)
-    maze[8, 13].set_east_wall(maze)
-    maze[8, 14].set_north_wall(maze)
-    maze[9, 0].set_north_wall(maze)
-    maze[9, 1].set_east_wall(maze)
-    maze[9, 2].set_north_wall(maze)
-    maze[9, 2].set_east_wall(maze)
-    maze[9, 3].set_north_wall(maze)
-    maze[9, 5].set_north_wall(maze)
-    maze[9, 5].set_east_wall(maze)
-    maze[9, 7].set_north_wall(maze)
-    maze[9, 8].set_east_wall(maze)
-    maze[9, 9].set_north_wall(maze)
-    maze[9, 10].set_north_wall(maze)
-    maze[9, 12].set_east_wall(maze)
-    maze[9, 13].set_east_wall(maze)
-    maze[9, 14].set_north_wall(maze)
-    maze[9, 14].set_east_wall(maze)
-    maze[10, 1].set_east_wall(maze)
-    maze[10, 2].set_east_wall(maze)
-    maze[10, 3].set_north_wall(maze)
-    maze[10, 3].set_east_wall(maze)
-    maze[10, 4].set_east_wall(maze)
-    maze[10, 6].set_north_wall(maze)
-    maze[10, 6].set_east_wall(maze)
-    maze[10, 7].set_east_wall(maze)
-    maze[10, 8].set_east_wall(maze)
-    maze[10, 9].set_north_wall(maze)
-    maze[10, 9].set_east_wall(maze)
-    maze[10, 10].set_north_wall(maze)
-    maze[10, 13].set_east_wall(maze)
-    maze[10, 14].set_east_wall(maze)
-    maze[10, 15].set_east_wall(maze)
-    maze[11, 0].set_east_wall(maze)
-    maze[11, 1].set_east_wall(maze)
-    maze[11, 2].set_north_wall(maze)
-    maze[11, 4].set_east_wall(maze)
-    maze[11, 5].set_east_wall(maze)
-    maze[11, 6].set_east_wall(maze)
-    maze[11, 7].set_east_wall(maze)
-    maze[11, 8].set_east_wall(maze)
-    maze[11, 9].set_east_wall(maze)
-    maze[11, 10].set_north_wall(maze)
-    maze[11, 10].set_east_wall(maze)
-    maze[11, 11].set_north_wall(maze)
-    maze[11, 12].set_north_wall(maze)
-    maze[11, 14].set_east_wall(maze)
-    maze[12, 1].set_north_wall(maze)
-    maze[12, 2].set_north_wall(maze)
-    maze[12, 3].set_north_wall(maze)
-    maze[12, 6].set_north_wall(maze)
-    maze[12, 9].set_north_wall(maze)
-    maze[12, 10].set_north_wall(maze)
-    maze[12, 11].set_north_wall(maze)
-    maze[12, 13].set_north_wall(maze)
-    maze[12, 13].set_east_wall(maze)
-    maze[13, 0].set_north_wall(maze)
-    maze[13, 1].set_north_wall(maze)
-    maze[13, 1].set_east_wall(maze)
-    maze[13, 2].set_north_wall(maze)
-    maze[13, 3].set_north_wall(maze)
-    maze[13, 4].set_north_wall(maze)
-    maze[13, 5].set_north_wall(maze)
-    maze[13, 6].set_north_wall(maze)
-    maze[13, 7].set_north_wall(maze)
-    maze[13, 8].set_north_wall(maze)
-    maze[13, 9].set_north_wall(maze)
-    maze[13, 10].set_north_wall(maze)
-    maze[13, 11].set_north_wall(maze)
-    maze[13, 12].set_east_wall(maze)
-    maze[13, 13].set_east_wall(maze)
-    maze[13, 14].set_north_wall(maze)
-    maze[13, 14].set_east_wall(maze)
-    maze[14, 1].set_east_wall(maze)
-    maze[14, 2].set_north_wall(maze)
-    maze[14, 2].set_east_wall(maze)
-    maze[14, 3].set_east_wall(maze)
-    maze[14, 4].set_north_wall(maze)
-    maze[14, 5].set_north_wall(maze)
-    maze[14, 6].set_east_wall(maze)
-    maze[14, 7].set_north_wall(maze)
-    maze[14, 8].set_north_wall(maze)
-    maze[14, 9].set_east_wall(maze)
-    maze[14, 10].set_north_wall(maze)
-    maze[14, 10].set_east_wall(maze)
-    maze[14, 11].set_north_wall(maze)
-    maze[14, 13].set_east_wall(maze)
-    maze[14, 14].set_east_wall(maze)
-    maze[15, 4].set_north_wall(maze)
-    maze[15, 7].set_north_wall(maze)
-    maze[15, 12].set_north_wall(maze)
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_example3(maze: Maze) -> None:
-    """Wall arrangement for example3.num (16x16)."""
-    maze[0, 0].set_east_wall(maze)
-    maze[0, 1].set_east_wall(maze)
-    maze[0, 2].set_north_wall(maze)
-    maze[0, 3].set_east_wall(maze)
-    maze[0, 5].set_east_wall(maze)
-    maze[0, 6].set_east_wall(maze)
-    maze[0, 7].set_east_wall(maze)
-    maze[0, 8].set_east_wall(maze)
-    maze[0, 9].set_north_wall(maze)
-    maze[0, 11].set_east_wall(maze)
-    maze[0, 12].set_east_wall(maze)
-    maze[0, 13].set_east_wall(maze)
-    maze[0, 14].set_east_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[1, 3].set_east_wall(maze)
-    maze[1, 4].set_east_wall(maze)
-    maze[1, 6].set_east_wall(maze)
-    maze[1, 7].set_east_wall(maze)
-    maze[1, 8].set_north_wall(maze)
-    maze[1, 9].set_north_wall(maze)
-    maze[1, 10].set_north_wall(maze)
-    maze[1, 12].set_north_wall(maze)
-    maze[1, 14].set_north_wall(maze)
-    maze[2, 0].set_north_wall(maze)
-    maze[2, 1].set_north_wall(maze)
-    maze[2, 3].set_east_wall(maze)
-    maze[2, 4].set_east_wall(maze)
-    maze[2, 5].set_east_wall(maze)
-    maze[2, 6].set_east_wall(maze)
-    maze[2, 7].set_east_wall(maze)
-    maze[2, 8].set_north_wall(maze)
-    maze[2, 8].set_east_wall(maze)
-    maze[2, 9].set_north_wall(maze)
-    maze[2, 9].set_east_wall(maze)
-    maze[2, 10].set_north_wall(maze)
-    maze[2, 11].set_north_wall(maze)
-    maze[2, 12].set_east_wall(maze)
-    maze[2, 13].set_north_wall(maze)
-    maze[2, 13].set_east_wall(maze)
-    maze[2, 14].set_east_wall(maze)
-    maze[2, 15].set_east_wall(maze)
-    maze[3, 0].set_north_wall(maze)
-    maze[3, 1].set_north_wall(maze)
-    maze[3, 2].set_east_wall(maze)
-    maze[3, 3].set_east_wall(maze)
-    maze[3, 4].set_east_wall(maze)
-    maze[3, 5].set_east_wall(maze)
-    maze[3, 6].set_east_wall(maze)
-    maze[3, 7].set_east_wall(maze)
-    maze[3, 8].set_east_wall(maze)
-    maze[3, 9].set_east_wall(maze)
-    maze[3, 10].set_north_wall(maze)
-    maze[3, 10].set_east_wall(maze)
-    maze[3, 11].set_east_wall(maze)
-    maze[3, 12].set_east_wall(maze)
-    maze[3, 13].set_east_wall(maze)
-    maze[3, 14].set_east_wall(maze)
-    maze[4, 0].set_north_wall(maze)
-    maze[4, 1].set_north_wall(maze)
-    maze[4, 3].set_east_wall(maze)
-    maze[4, 4].set_east_wall(maze)
-    maze[4, 5].set_east_wall(maze)
-    maze[4, 6].set_east_wall(maze)
-    maze[4, 7].set_north_wall(maze)
-    maze[4, 9].set_north_wall(maze)
-    maze[4, 10].set_east_wall(maze)
-    maze[4, 11].set_east_wall(maze)
-    maze[4, 12].set_east_wall(maze)
-    maze[4, 14].set_north_wall(maze)
-    maze[5, 0].set_north_wall(maze)
-    maze[5, 1].set_north_wall(maze)
-    maze[5, 2].set_east_wall(maze)
-    maze[5, 3].set_east_wall(maze)
-    maze[5, 4].set_east_wall(maze)
-    maze[5, 5].set_east_wall(maze)
-    maze[5, 6].set_north_wall(maze)
-    maze[5, 7].set_east_wall(maze)
-    maze[5, 8].set_north_wall(maze)
-    maze[5, 9].set_east_wall(maze)
-    maze[5, 10].set_east_wall(maze)
-    maze[5, 11].set_east_wall(maze)
-    maze[5, 12].set_north_wall(maze)
-    maze[5, 13].set_north_wall(maze)
-    maze[5, 14].set_east_wall(maze)
-    maze[5, 15].set_east_wall(maze)
-    maze[6, 0].set_north_wall(maze)
-    maze[6, 1].set_north_wall(maze)
-    maze[6, 2].set_east_wall(maze)
-    maze[6, 3].set_east_wall(maze)
-    maze[6, 4].set_east_wall(maze)
-    maze[6, 5].set_north_wall(maze)
-    maze[6, 6].set_east_wall(maze)
-    maze[6, 7].set_north_wall(maze)
-    maze[6, 8].set_north_wall(maze)
-    maze[6, 8].set_east_wall(maze)
-    maze[6, 9].set_east_wall(maze)
-    maze[6, 10].set_east_wall(maze)
-    maze[6, 11].set_north_wall(maze)
-    maze[6, 12].set_north_wall(maze)
-    maze[7, 3].set_east_wall(maze)
-    maze[7, 4].set_north_wall(maze)
-    maze[7, 5].set_east_wall(maze)
-    maze[7, 6].set_north_wall(maze)
-    maze[7, 8].set_north_wall(maze)
-    maze[7, 10].set_north_wall(maze)
-    maze[7, 11].set_north_wall(maze)
-    maze[7, 12].set_north_wall(maze)
-    maze[7, 13].set_north_wall(maze)
-    maze[7, 14].set_north_wall(maze)
-    maze[8, 0].set_north_wall(maze)
-    maze[8, 1].set_north_wall(maze)
-    maze[8, 2].set_north_wall(maze)
-    maze[8, 3].set_north_wall(maze)
-    maze[8, 5].set_east_wall(maze)
-    maze[8, 6].set_north_wall(maze)
-    maze[8, 7].set_east_wall(maze)
-    maze[8, 8].set_north_wall(maze)
-    maze[8, 8].set_east_wall(maze)
-    maze[8, 9].set_north_wall(maze)
-    maze[8, 10].set_north_wall(maze)
-    maze[8, 10].set_east_wall(maze)
-    maze[8, 12].set_north_wall(maze)
-    maze[8, 12].set_east_wall(maze)
-    maze[8, 13].set_north_wall(maze)
-    maze[8, 14].set_north_wall(maze)
-    maze[9, 0].set_north_wall(maze)
-    maze[9, 1].set_north_wall(maze)
-    maze[9, 2].set_north_wall(maze)
-    maze[9, 4].set_north_wall(maze)
-    maze[9, 4].set_east_wall(maze)
-    maze[9, 6].set_north_wall(maze)
-    maze[9, 6].set_east_wall(maze)
-    maze[9, 8].set_north_wall(maze)
-    maze[9, 8].set_east_wall(maze)
-    maze[9, 9].set_north_wall(maze)
-    maze[9, 11].set_east_wall(maze)
-    maze[9, 12].set_north_wall(maze)
-    maze[9, 13].set_north_wall(maze)
-    maze[9, 13].set_east_wall(maze)
-    maze[9, 14].set_north_wall(maze)
-    maze[10, 0].set_north_wall(maze)
-    maze[10, 1].set_north_wall(maze)
-    maze[10, 3].set_north_wall(maze)
-    maze[10, 3].set_east_wall(maze)
-    maze[10, 5].set_north_wall(maze)
-    maze[10, 5].set_east_wall(maze)
-    maze[10, 7].set_north_wall(maze)
-    maze[10, 9].set_north_wall(maze)
-    maze[10, 9].set_east_wall(maze)
-    maze[10, 10].set_east_wall(maze)
-    maze[10, 11].set_east_wall(maze)
-    maze[10, 12].set_north_wall(maze)
-    maze[10, 14].set_north_wall(maze)
-    maze[11, 0].set_north_wall(maze)
-    maze[11, 1].set_east_wall(maze)
-    maze[11, 2].set_north_wall(maze)
-    maze[11, 2].set_east_wall(maze)
-    maze[11, 4].set_north_wall(maze)
-    maze[11, 4].set_east_wall(maze)
-    maze[11, 6].set_north_wall(maze)
-    maze[11, 6].set_east_wall(maze)
-    maze[11, 7].set_north_wall(maze)
-    maze[11, 7].set_east_wall(maze)
-    maze[11, 8].set_north_wall(maze)
-    maze[11, 10].set_north_wall(maze)
-    maze[11, 11].set_north_wall(maze)
-    maze[11, 12].set_east_wall(maze)
-    maze[11, 13].set_north_wall(maze)
-    maze[11, 14].set_north_wall(maze)
-    maze[12, 0].set_north_wall(maze)
-    maze[12, 1].set_north_wall(maze)
-    maze[12, 3].set_north_wall(maze)
-    maze[12, 3].set_east_wall(maze)
-    maze[12, 6].set_east_wall(maze)
-    maze[12, 7].set_north_wall(maze)
-    maze[12, 8].set_north_wall(maze)
-    maze[12, 9].set_north_wall(maze)
-    maze[12, 10].set_north_wall(maze)
-    maze[12, 12].set_north_wall(maze)
-    maze[12, 13].set_north_wall(maze)
-    maze[12, 14].set_north_wall(maze)
-    maze[13, 0].set_north_wall(maze)
-    maze[13, 2].set_north_wall(maze)
-    maze[13, 2].set_east_wall(maze)
-    maze[13, 4].set_north_wall(maze)
-    maze[13, 4].set_east_wall(maze)
-    maze[13, 5].set_north_wall(maze)
-    maze[13, 6].set_east_wall(maze)
-    maze[13, 7].set_north_wall(maze)
-    maze[13, 8].set_east_wall(maze)
-    maze[13, 9].set_north_wall(maze)
-    maze[13, 9].set_east_wall(maze)
-    maze[13, 10].set_north_wall(maze)
-    maze[13, 11].set_north_wall(maze)
-    maze[13, 12].set_north_wall(maze)
-    maze[13, 13].set_north_wall(maze)
-    maze[13, 14].set_north_wall(maze)
-    maze[14, 0].set_north_wall(maze)
-    maze[14, 1].set_east_wall(maze)
-    maze[14, 2].set_east_wall(maze)
-    maze[14, 3].set_east_wall(maze)
-    maze[14, 4].set_east_wall(maze)
-    maze[14, 5].set_east_wall(maze)
-    maze[14, 6].set_east_wall(maze)
-    maze[14, 7].set_east_wall(maze)
-    maze[14, 8].set_east_wall(maze)
-    maze[14, 9].set_north_wall(maze)
-    maze[14, 9].set_east_wall(maze)
-    maze[14, 10].set_east_wall(maze)
-    maze[14, 11].set_north_wall(maze)
-    maze[14, 11].set_east_wall(maze)
-    maze[14, 12].set_east_wall(maze)
-    maze[14, 13].set_north_wall(maze)
-    maze[14, 13].set_east_wall(maze)
-    maze[14, 14].set_north_wall(maze)
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_example4(maze: Maze) -> None:
-    """Wall arrangement for example4.num (16x16)."""
-    maze[0, 0].set_east_wall(maze)
-    maze[0, 3].set_east_wall(maze)
-    maze[0, 4].set_east_wall(maze)
-    maze[0, 5].set_east_wall(maze)
-    maze[0, 6].set_north_wall(maze)
-    maze[0, 6].set_east_wall(maze)
-    maze[0, 7].set_north_wall(maze)
-    maze[0, 8].set_north_wall(maze)
-    maze[0, 9].set_north_wall(maze)
-    maze[0, 11].set_east_wall(maze)
-    maze[0, 12].set_east_wall(maze)
-    maze[0, 13].set_east_wall(maze)
-    maze[1, 1].set_north_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[1, 4].set_north_wall(maze)
-    maze[1, 5].set_north_wall(maze)
-    maze[1, 12].set_east_wall(maze)
-    maze[1, 13].set_east_wall(maze)
-    maze[1, 14].set_north_wall(maze)
-    maze[1, 14].set_east_wall(maze)
-    maze[2, 0].set_north_wall(maze)
-    maze[2, 2].set_north_wall(maze)
-    maze[2, 3].set_north_wall(maze)
-    maze[2, 3].set_east_wall(maze)
-    maze[2, 4].set_north_wall(maze)
-    maze[2, 4].set_east_wall(maze)
-    maze[2, 6].set_north_wall(maze)
-    maze[2, 6].set_east_wall(maze)
-    maze[2, 7].set_north_wall(maze)
-    maze[2, 7].set_east_wall(maze)
-    maze[2, 8].set_north_wall(maze)
-    maze[2, 8].set_east_wall(maze)
-    maze[2, 9].set_north_wall(maze)
-    maze[2, 10].set_north_wall(maze)
-    maze[2, 10].set_east_wall(maze)
-    maze[2, 11].set_north_wall(maze)
-    maze[2, 11].set_east_wall(maze)
-    maze[2, 13].set_east_wall(maze)
-    maze[2, 14].set_north_wall(maze)
-    maze[3, 0].set_north_wall(maze)
-    maze[3, 1].set_north_wall(maze)
-    maze[3, 1].set_east_wall(maze)
-    maze[3, 2].set_east_wall(maze)
-    maze[3, 3].set_north_wall(maze)
-    maze[3, 5].set_east_wall(maze)
-    maze[3, 6].set_east_wall(maze)
-    maze[3, 7].set_east_wall(maze)
-    maze[3, 8].set_north_wall(maze)
-    maze[3, 8].set_east_wall(maze)
-    maze[3, 9].set_north_wall(maze)
-    maze[3, 11].set_east_wall(maze)
-    maze[3, 12].set_north_wall(maze)
-    maze[3, 14].set_north_wall(maze)
-    maze[4, 1].set_east_wall(maze)
-    maze[4, 2].set_east_wall(maze)
-    maze[4, 3].set_east_wall(maze)
-    maze[4, 4].set_east_wall(maze)
-    maze[4, 6].set_east_wall(maze)
-    maze[4, 7].set_east_wall(maze)
-    maze[4, 8].set_north_wall(maze)
-    maze[4, 8].set_east_wall(maze)
-    maze[4, 9].set_east_wall(maze)
-    maze[4, 10].set_north_wall(maze)
-    maze[4, 10].set_east_wall(maze)
-    maze[4, 11].set_north_wall(maze)
-    maze[4, 12].set_north_wall(maze)
-    maze[4, 12].set_east_wall(maze)
-    maze[4, 13].set_north_wall(maze)
-    maze[4, 14].set_north_wall(maze)
-    maze[5, 1].set_east_wall(maze)
-    maze[5, 2].set_north_wall(maze)
-    maze[5, 2].set_east_wall(maze)
-    maze[5, 4].set_east_wall(maze)
-    maze[5, 5].set_north_wall(maze)
-    maze[5, 5].set_east_wall(maze)
-    maze[5, 7].set_east_wall(maze)
-    maze[5, 9].set_north_wall(maze)
-    maze[5, 10].set_east_wall(maze)
-    maze[5, 11].set_east_wall(maze)
-    maze[5, 12].set_east_wall(maze)
-    maze[5, 13].set_north_wall(maze)
-    maze[5, 13].set_east_wall(maze)
-    maze[5, 14].set_north_wall(maze)
-    maze[5, 14].set_east_wall(maze)
-    maze[6, 1].set_east_wall(maze)
-    maze[6, 3].set_east_wall(maze)
-    maze[6, 4].set_north_wall(maze)
-    maze[6, 4].set_east_wall(maze)
-    maze[6, 7].set_east_wall(maze)
-    maze[6, 8].set_north_wall(maze)
-    maze[6, 8].set_east_wall(maze)
-    maze[6, 10].set_north_wall(maze)
-    maze[6, 12].set_east_wall(maze)
-    maze[6, 14].set_east_wall(maze)
-    maze[7, 1].set_north_wall(maze)
-    maze[7, 2].set_east_wall(maze)
-    maze[7, 3].set_east_wall(maze)
-    maze[7, 4].set_north_wall(maze)
-    maze[7, 4].set_east_wall(maze)
-    maze[7, 5].set_north_wall(maze)
-    maze[7, 6].set_east_wall(maze)
-    maze[7, 8].set_north_wall(maze)
-    maze[7, 9].set_north_wall(maze)
-    maze[7, 10].set_north_wall(maze)
-    maze[7, 13].set_east_wall(maze)
-    maze[8, 0].set_north_wall(maze)
-    maze[8, 1].set_east_wall(maze)
-    maze[8, 2].set_east_wall(maze)
-    maze[8, 3].set_east_wall(maze)
-    maze[8, 4].set_north_wall(maze)
-    maze[8, 5].set_east_wall(maze)
-    maze[8, 6].set_north_wall(maze)
-    maze[8, 7].set_east_wall(maze)
-    maze[8, 8].set_north_wall(maze)
-    maze[8, 8].set_east_wall(maze)
-    maze[8, 9].set_north_wall(maze)
-    maze[8, 10].set_north_wall(maze)
-    maze[8, 11].set_north_wall(maze)
-    maze[8, 12].set_east_wall(maze)
-    maze[8, 14].set_north_wall(maze)
-    maze[8, 14].set_east_wall(maze)
-    maze[9, 1].set_east_wall(maze)
-    maze[9, 2].set_north_wall(maze)
-    maze[9, 2].set_east_wall(maze)
-    maze[9, 4].set_north_wall(maze)
-    maze[9, 4].set_east_wall(maze)
-    maze[9, 5].set_east_wall(maze)
-    maze[9, 6].set_east_wall(maze)
-    maze[9, 7].set_north_wall(maze)
-    maze[9, 8].set_east_wall(maze)
-    maze[9, 9].set_east_wall(maze)
-    maze[9, 10].set_north_wall(maze)
-    maze[9, 11].set_east_wall(maze)
-    maze[9, 12].set_north_wall(maze)
-    maze[9, 13].set_east_wall(maze)
-    maze[9, 14].set_north_wall(maze)
-    maze[10, 0].set_north_wall(maze)
-    maze[10, 2].set_north_wall(maze)
-    maze[10, 3].set_east_wall(maze)
-    maze[10, 4].set_east_wall(maze)
-    maze[10, 5].set_north_wall(maze)
-    maze[10, 6].set_east_wall(maze)
-    maze[10, 7].set_east_wall(maze)
-    maze[10, 8].set_north_wall(maze)
-    maze[10, 10].set_east_wall(maze)
-    maze[10, 11].set_north_wall(maze)
-    maze[10, 12].set_east_wall(maze)
-    maze[10, 14].set_north_wall(maze)
-    maze[10, 14].set_east_wall(maze)
-    maze[11, 1].set_north_wall(maze)
-    maze[11, 1].set_east_wall(maze)
-    maze[11, 2].set_east_wall(maze)
-    maze[11, 4].set_east_wall(maze)
-    maze[11, 5].set_east_wall(maze)
-    maze[11, 6].set_north_wall(maze)
-    maze[11, 7].set_east_wall(maze)
-    maze[11, 8].set_east_wall(maze)
-    maze[11, 10].set_east_wall(maze)
-    maze[11, 11].set_east_wall(maze)
-    maze[11, 13].set_north_wall(maze)
-    maze[11, 14].set_east_wall(maze)
-    maze[12, 1].set_north_wall(maze)
-    maze[12, 3].set_east_wall(maze)
-    maze[12, 4].set_north_wall(maze)
-    maze[12, 5].set_east_wall(maze)
-    maze[12, 6].set_east_wall(maze)
-    maze[12, 7].set_north_wall(maze)
-    maze[12, 8].set_east_wall(maze)
-    maze[12, 9].set_east_wall(maze)
-    maze[12, 11].set_east_wall(maze)
-    maze[12, 12].set_north_wall(maze)
-    maze[12, 13].set_north_wall(maze)
-    maze[12, 14].set_east_wall(maze)
-    maze[13, 0].set_north_wall(maze)
-    maze[13, 2].set_north_wall(maze)
-    maze[13, 2].set_east_wall(maze)
-    maze[13, 3].set_east_wall(maze)
-    maze[13, 4].set_north_wall(maze)
-    maze[13, 5].set_north_wall(maze)
-    maze[13, 7].set_north_wall(maze)
-    maze[13, 7].set_east_wall(maze)
-    maze[13, 8].set_north_wall(maze)
-    maze[13, 9].set_north_wall(maze)
-    maze[13, 10].set_east_wall(maze)
-    maze[13, 11].set_north_wall(maze)
-    maze[13, 12].set_east_wall(maze)
-    maze[13, 14].set_east_wall(maze)
-    maze[14, 1].set_north_wall(maze)
-    maze[14, 2].set_north_wall(maze)
-    maze[14, 3].set_north_wall(maze)
-    maze[14, 4].set_north_wall(maze)
-    maze[14, 5].set_north_wall(maze)
-    maze[14, 6].set_east_wall(maze)
-    maze[14, 7].set_north_wall(maze)
-    maze[14, 9].set_east_wall(maze)
-    maze[14, 10].set_north_wall(maze)
-    maze[14, 11].set_east_wall(maze)
-    maze[14, 12].set_east_wall(maze)
-    maze[14, 13].set_east_wall(maze)
-    maze[14, 14].set_east_wall(maze)
-    maze[15, 0].set_north_wall(maze)
-    maze[15, 8].set_north_wall(maze)
-    maze.update_all_wall_codes()
-
-
-def wall_arrangement_example5(maze: Maze) -> None:
-    """Wall arrangement for example5.num (16x16)."""
-    maze[0, 0].set_east_wall(maze)
-    maze[0, 1].set_east_wall(maze)
-    maze[0, 2].set_east_wall(maze)
-    maze[0, 3].set_east_wall(maze)
-    maze[0, 4].set_east_wall(maze)
-    maze[0, 5].set_east_wall(maze)
-    maze[0, 6].set_east_wall(maze)
-    maze[0, 7].set_north_wall(maze)
-    maze[0, 9].set_east_wall(maze)
-    maze[0, 10].set_north_wall(maze)
-    maze[0, 12].set_east_wall(maze)
-    maze[0, 13].set_east_wall(maze)
-    maze[0, 14].set_east_wall(maze)
-    maze[1, 1].set_east_wall(maze)
-    maze[1, 2].set_east_wall(maze)
-    maze[1, 3].set_east_wall(maze)
-    maze[1, 4].set_east_wall(maze)
-    maze[1, 5].set_east_wall(maze)
-    maze[1, 6].set_east_wall(maze)
-    maze[1, 7].set_north_wall(maze)
-    maze[1, 8].set_north_wall(maze)
-    maze[1, 10].set_north_wall(maze)
-    maze[1, 10].set_east_wall(maze)
-    maze[1, 12].set_north_wall(maze)
-    maze[1, 12].set_east_wall(maze)
-    maze[1, 13].set_north_wall(maze)
-    maze[1, 14].set_north_wall(maze)
-    maze[2, 0].set_north_wall(maze)
-    maze[2, 1].set_east_wall(maze)
-    maze[2, 3].set_east_wall(maze)
-    maze[2, 4].set_east_wall(maze)
-    maze[2, 5].set_east_wall(maze)
-    maze[2, 6].set_east_wall(maze)
-    maze[2, 7].set_north_wall(maze)
-    maze[2, 7].set_east_wall(maze)
-    maze[2, 8].set_north_wall(maze)
-    maze[2, 9].set_east_wall(maze)
-    maze[2, 10].set_north_wall(maze)
-    maze[2, 11].set_north_wall(maze)
-    maze[3, 0].set_east_wall(maze)
-    maze[3, 1].set_north_wall(maze)
-    maze[3, 2].set_east_wall(maze)
-    maze[3, 3].set_north_wall(maze)
-    maze[3, 4].set_north_wall(maze)
-    maze[3, 5].set_east_wall(maze)
-    maze[3, 6].set_east_wall(maze)
-    maze[3, 8].set_north_wall(maze)
-    maze[3, 9].set_east_wall(maze)
-    maze[3, 10].set_north_wall(maze)
-    maze[3, 11].set_north_wall(maze)
-    maze[3, 12].set_north_wall(maze)
-    maze[3, 13].set_north_wall(maze)
-    maze[3, 13].set_east_wall(maze)
-    maze[3, 14].set_north_wall(maze)
-    maze[3, 15].set_east_wall(maze)
-    maze[4, 0].set_north_wall(maze)
-    maze[4, 1].set_east_wall(maze)
-    maze[4, 2].set_north_wall(maze)
-    maze[4, 3].set_east_wall(maze)
-    maze[4, 4].set_north_wall(maze)
-    maze[4, 6].set_east_wall(maze)
-    maze[4, 7].set_north_wall(maze)
-    maze[4, 7].set_east_wall(maze)
-    maze[4, 8].set_north_wall(maze)
-    maze[4, 9].set_north_wall(maze)
-    maze[4, 10].set_north_wall(maze)
-    maze[4, 11].set_north_wall(maze)
-    maze[4, 12].set_east_wall(maze)
-    maze[4, 13].set_north_wall(maze)
-    maze[5, 1].set_north_wall(maze)
-    maze[5, 2].set_north_wall(maze)
-    maze[5, 3].set_north_wall(maze)
-    maze[5, 4].set_north_wall(maze)
-    maze[5, 5].set_east_wall(maze)
-    maze[5, 6].set_east_wall(maze)
-    maze[5, 7].set_north_wall(maze)
-    maze[5, 8].set_north_wall(maze)
-    maze[5, 9].set_north_wall(maze)
-    maze[5, 10].set_east_wall(maze)
-    maze[5, 11].set_north_wall(maze)
-    maze[5, 11].set_east_wall(maze)
-    maze[5, 13].set_north_wall(maze)
-    maze[5, 13].set_east_wall(maze)
-    maze[5, 14].set_north_wall(maze)
-    maze[6, 0].set_north_wall(maze)
-    maze[6, 1].set_east_wall(maze)
-    maze[6, 2].set_north_wall(maze)
-    maze[6, 2].set_east_wall(maze)
-    maze[6, 4].set_north_wall(maze)
-    maze[6, 4].set_east_wall(maze)
-    maze[6, 6].set_east_wall(maze)
-    maze[6, 7].set_north_wall(maze)
-    maze[6, 7].set_east_wall(maze)
-    maze[6, 8].set_north_wall(maze)
-    maze[6, 8].set_east_wall(maze)
-    maze[6, 10].set_east_wall(maze)
-    maze[6, 11].set_north_wall(maze)
-    maze[6, 12].set_east_wall(maze)
-    maze[6, 13].set_north_wall(maze)
-    maze[6, 14].set_north_wall(maze)
-    maze[6, 14].set_east_wall(maze)
-    maze[7, 0].set_east_wall(maze)
-    maze[7, 1].set_east_wall(maze)
-    maze[7, 2].set_north_wall(maze)
-    maze[7, 3].set_east_wall(maze)
-    maze[7, 4].set_east_wall(maze)
-    maze[7, 5].set_east_wall(maze)
-    maze[7, 6].set_north_wall(maze)
-    maze[7, 6].set_east_wall(maze)
-    maze[7, 8].set_north_wall(maze)
-    maze[7, 9].set_east_wall(maze)
-    maze[7, 10].set_north_wall(maze)
-    maze[7, 11].set_east_wall(maze)
-    maze[7, 12].set_east_wall(maze)
-    maze[7, 13].set_north_wall(maze)
-    maze[7, 13].set_east_wall(maze)
-    maze[7, 14].set_east_wall(maze)
-    maze[7, 15].set_east_wall(maze)
-    maze[8, 1].set_east_wall(maze)
-    maze[8, 3].set_east_wall(maze)
-    maze[8, 4].set_east_wall(maze)
-    maze[8, 5].set_east_wall(maze)
-    maze[8, 6].set_north_wall(maze)
-    maze[8, 6].set_east_wall(maze)
-    maze[8, 7].set_east_wall(maze)
-    maze[8, 8].set_east_wall(maze)
-    maze[8, 9].set_north_wall(maze)
-    maze[8, 10].set_east_wall(maze)
-    maze[8, 11].set_east_wall(maze)
-    maze[8, 12].set_east_wall(maze)
-    maze[8, 13].set_east_wall(maze)
-    maze[8, 14].set_east_wall(maze)
-    maze[9, 0].set_north_wall(maze)
-    maze[9, 1].set_east_wall(maze)
-    maze[9, 2].set_east_wall(maze)
-    maze[9, 3].set_east_wall(maze)
-    maze[9, 4].set_north_wall(maze)
-    maze[9, 6].set_north_wall(maze)
-    maze[9, 6].set_east_wall(maze)
-    maze[9, 8].set_north_wall(maze)
-    maze[9, 9].set_east_wall(maze)
-    maze[9, 10].set_east_wall(maze)
-    maze[9, 11].set_east_wall(maze)
-    maze[9, 12].set_north_wall(maze)
-    maze[9, 13].set_east_wall(maze)
-    maze[10, 0].set_north_wall(maze)
-    maze[10, 2].set_north_wall(maze)
-    maze[10, 2].set_east_wall(maze)
-    maze[10, 4].set_north_wall(maze)
-    maze[10, 4].set_east_wall(maze)
-    maze[10, 5].set_north_wall(maze)
-    maze[10, 6].set_east_wall(maze)
-    maze[10, 7].set_north_wall(maze)
-    maze[10, 8].set_north_wall(maze)
-    maze[10, 9].set_east_wall(maze)
-    maze[10, 12].set_east_wall(maze)
-    maze[10, 13].set_north_wall(maze)
-    maze[10, 13].set_east_wall(maze)
-    maze[10, 14].set_north_wall(maze)
-    maze[10, 14].set_east_wall(maze)
-    maze[11, 0].set_north_wall(maze)
-    maze[11, 0].set_east_wall(maze)
-    maze[11, 1].set_north_wall(maze)
-    maze[11, 3].set_north_wall(maze)
-    maze[11, 3].set_east_wall(maze)
-    maze[11, 5].set_north_wall(maze)
-    maze[11, 7].set_north_wall(maze)
-    maze[11, 7].set_east_wall(maze)
-    maze[11, 9].set_north_wall(maze)
-    maze[11, 9].set_east_wall(maze)
-    maze[11, 10].set_north_wall(maze)
-    maze[11, 11].set_north_wall(maze)
-    maze[11, 12].set_north_wall(maze)
-    maze[11, 13].set_north_wall(maze)
-    maze[11, 14].set_north_wall(maze)
-    maze[12, 1].set_east_wall(maze)
-    maze[12, 2].set_north_wall(maze)
-    maze[12, 2].set_east_wall(maze)
-    maze[12, 4].set_north_wall(maze)
-    maze[12, 4].set_east_wall(maze)
-    maze[12, 5].set_north_wall(maze)
-    maze[12, 6].set_east_wall(maze)
-    maze[12, 7].set_north_wall(maze)
-    maze[12, 8].set_north_wall(maze)
-    maze[12, 9].set_north_wall(maze)
-    maze[12, 10].set_north_wall(maze)
-    maze[12, 11].set_east_wall(maze)
-    maze[13, 1].set_north_wall(maze)
-    maze[13, 1].set_east_wall(maze)
-    maze[13, 3].set_north_wall(maze)
-    maze[13, 3].set_east_wall(maze)
-    maze[13, 5].set_north_wall(maze)
-    maze[13, 5].set_east_wall(maze)
-    maze[13, 7].set_north_wall(maze)
-    maze[13, 7].set_east_wall(maze)
-    maze[13, 9].set_north_wall(maze)
-    maze[13, 9].set_east_wall(maze)
-    maze[13, 10].set_east_wall(maze)
-    maze[13, 11].set_north_wall(maze)
-    maze[13, 12].set_north_wall(maze)
-    maze[13, 12].set_east_wall(maze)
-    maze[13, 13].set_north_wall(maze)
-    maze[13, 13].set_east_wall(maze)
-    maze[13, 14].set_north_wall(maze)
-    maze[13, 14].set_east_wall(maze)
-    maze[14, 0].set_north_wall(maze)
-    maze[14, 2].set_north_wall(maze)
-    maze[14, 2].set_east_wall(maze)
-    maze[14, 4].set_north_wall(maze)
-    maze[14, 4].set_east_wall(maze)
-    maze[14, 5].set_north_wall(maze)
-    maze[14, 6].set_east_wall(maze)
-    maze[14, 7].set_north_wall(maze)
-    maze[14, 8].set_east_wall(maze)
-    maze[14, 10].set_north_wall(maze)
-    maze[14, 10].set_east_wall(maze)
-    maze[14, 11].set_east_wall(maze)
-    maze[14, 12].set_north_wall(maze)
-    maze[14, 14].set_north_wall(maze)
-    maze[15, 1].set_north_wall(maze)
-    maze[15, 7].set_north_wall(maze)
-    maze[15, 13].set_north_wall(maze)
-    maze.update_all_wall_codes()
-
 
 import os
+import struct
+from typing import Dict, List, Optional, Union
+try:
+    from cell import Cell, Maze, create_empty_maze
+except ImportError:
+    from .cell import Cell, Maze, create_empty_maze
 
-MAZES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mazes")
 
-def load_num_maze(filepath_or_name: str) -> Maze:
-    """Load an MMS .num formatted maze file."""
-    path = filepath_or_name
-    if not os.path.isfile(path):
-        candidate = os.path.join(MAZES_DIR, filepath_or_name if filepath_or_name.endswith('.num') else f"{filepath_or_name}.num")
-        if os.path.isfile(candidate):
-            path = candidate
-        else:
-            raise FileNotFoundError(f"Maze file '{filepath_or_name}' not found")
+class CompactMaze:
+    """
+    Compact bitmask representation of a Micromouse maze.
+    - h_walls[y] has bit x set if there is a horizontal wall below cell (x, y).
+    - v_walls[x] has bit y set if there is a vertical wall left of cell (x, y).
+    Size for 16x16: 17 uint16 for h_walls (34 bytes) + 17 uint16 for v_walls (34 bytes) = 68 bytes!
+    """
 
-    records = []
-    max_x, max_y = 0, 0
-    with open(path, 'r', encoding='utf-8') as f:
+    def __init__(self, width: int, height: int, h_walls: List[int], v_walls: List[int]):
+        self.width = width
+        self.height = height
+        self.h_walls = h_walls
+        self.v_walls = v_walls
+
+    def apply_to(self, maze: Maze) -> None:
+        """Apply compact wall bitmasks to an existing Maze instance."""
+        for y in range(self.height):
+            for x in range(self.width):
+                cell = maze[x, y]
+                if self.h_walls[y + 1] & (1 << x):
+                    cell.set_north_wall(maze)
+                if self.h_walls[y] & (1 << x):
+                    cell.set_south_wall(maze)
+                if self.v_walls[x + 1] & (1 << y):
+                    cell.set_east_wall(maze)
+                if self.v_walls[x] & (1 << y):
+                    cell.set_west_wall(maze)
+
+    def to_bytes(self) -> bytes:
+        """Serialize into compact binary format: [width, height, ...h_walls, ...v_walls]."""
+        data = bytearray([self.width, self.height])
+        for val in self.h_walls:
+            data.extend(struct.pack('<H', val))
+        for val in self.v_walls:
+            data.extend(struct.pack('<H', val))
+        return bytes(data)
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'CompactMaze':
+        """Deserialize from compact binary format."""
+        width, height = data[0], data[1]
+        offset = 2
+        h_count = height + 1
+        v_count = width + 1
+        h_walls = list(struct.unpack_from(f'<{h_count}H', data, offset))
+        offset += h_count * 2
+        v_walls = list(struct.unpack_from(f'<{v_count}H', data, offset))
+        return cls(width, height, h_walls, v_walls)
+
+    @classmethod
+    def from_maze(cls, maze: Maze) -> 'CompactMaze':
+        """Create a CompactMaze from an existing Maze object."""
+        s = maze.size
+        h_walls = [0] * (s + 1)
+        v_walls = [0] * (s + 1)
+        for y in range(s):
+            for x in range(s):
+                cell = maze[x, y]
+                if cell.is_north_wall:
+                    h_walls[y + 1] |= (1 << x)
+                if cell.is_south_wall:
+                    h_walls[y] |= (1 << x)
+                if cell.is_east_wall:
+                    v_walls[x + 1] |= (1 << y)
+                if cell.is_west_wall:
+                    v_walls[x] |= (1 << y)
+        return cls(s, s, h_walls, v_walls)
+
+
+# ============================================================================
+# Compact Maze Presets
+# ============================================================================
+
+PRESET_COMPACT_5x5 = CompactMaze(
+    5, 5,
+    [0x1f, 0xc, 0x5, 0x8, 0x19, 0x1f],
+    [0x1f, 0x5, 0x14, 0x3, 0x4, 0x1f]
+)
+
+PRESET_COMPACT_6x6 = CompactMaze(
+    6, 6,
+    [0x3f, 0xc, 0xc, 0x30, 0x6, 0xe, 0x3f],
+    [0x3f, 0x6, 0xc, 0x0, 0xe, 0x33, 0x3f]
+)
+
+PRESET_COMPACT_10x10 = CompactMaze(
+    10, 10,
+    [0x3ff, 0x200, 0x84, 0x120, 0xf9, 0x38, 0xa2, 0x0, 0x0, 0x200, 0x3ff],
+    [0x3ff, 0x42, 0x55, 0x28, 0xac, 0x16c, 0x54, 0x1c0, 0x0, 0xf0, 0x3ff]
+)
+
+PRESET_COMPACT_16x16 = CompactMaze(
+    16, 16,
+    [0xffff, 0x7fec, 0x7efc, 0x1ffa, 0xef0, 0x7f0, 0x2c0, 0x180, 0x0, 0x180, 0x3c0, 0x7e0, 0x1ff0, 0x1bfa, 0x377c, 0x6dfc, 0xffff],
+    [0xffff, 0xcff3, 0x7ffe, 0x1f78, 0xf70, 0x760, 0x360, 0x100, 0xc02, 0x180, 0x3c0, 0x2760, 0xdf0, 0x1ffc, 0x3fbc, 0x7fec, 0xffff]
+)
+
+PRESET_COMPACT_BLANK = CompactMaze(
+    16, 16,
+    [0xffff, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xffff],
+    [0xffff, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xffff]
+)
+
+PRESET_COMPACT_EXAMPLE2 = CompactMaze(
+    16, 16,
+    [0xffff, 0x23cd, 0x3020, 0x7b56, 0x36ea, 0xe174, 0x6280, 0x35cc, 0xe220, 0x61d6, 0x373b, 0x7ed6, 0x79a0, 0x8818, 0x1080, 0x237c, 0xffff],
+    [0xffff, 0xf1e4, 0x70d2, 0x2f2c, 0x58d6, 0x21ea, 0x3844, 0x53a4, 0x240c, 0x38d2, 0x7126, 0xe3de, 0x47f3, 0x2000, 0x7002, 0x664e, 0xffff]
+)
+
+PRESET_COMPACT_EXAMPLE3 = CompactMaze(
+    16, 16,
+    [0xffff, 0x7f7c, 0x177c, 0x2b01, 0x1500, 0x2a80, 0x2440, 0xba0, 0x3c50, 0x1be6, 0x7717, 0x398e, 0x68c4, 0x37e2, 0x7ba4, 0x7f92, 0xffff],
+    [0xffff, 0x79eb, 0xdc, 0xf3f8, 0x7ffc, 0x1c78, 0xcebc, 0x75c, 0x28, 0x15a0, 0x2950, 0xe28, 0x10d6, 0x48, 0x354, 0x3ffe, 0xffff]
+)
+
+PRESET_COMPACT_EXAMPLE4 = CompactMaze(
+    16, 16,
+    [0xffff, 0xa50c, 0x588a, 0x6624, 0x400c, 0x73c6, 0x64a2, 0x905, 0x7205, 0xa5dd, 0x21ad, 0x43d4, 0x2514, 0x1218, 0x1830, 0x73e, 0xffff],
+    [0xffff, 0x3879, 0x7004, 0x2dd8, 0x9e6, 0x17de, 0x7cb6, 0x519a, 0x205c, 0x51ae, 0x2b76, 0x54d8, 0x4db6, 0x4b68, 0x548c, 0x7a40, 0xffff]
+)
+
+PRESET_COMPACT_EXAMPLE5 = CompactMaze(
+    16, 16,
+    [0xffff, 0x4e54, 0xa828, 0x54f0, 0x2828, 0x5678, 0x7c00, 0x380, 0xfc77, 0x16fe, 0x3930, 0x589f, 0x287c, 0x6a0a, 0xacfa, 0x6c6a, 0xffff],
+    [0xffff, 0x727f, 0x147e, 0x2fa, 0xa265, 0x10ca, 0x2c60, 0x55d6, 0xfa7b, 0x7dfa, 0x2e4e, 0x7254, 0x289, 0x856, 0x76aa, 0xd54, 0xffff]
+)
+
+
+# ============================================================================
+# Backward-Compatible Wall Arrangement Functions
+# ============================================================================
+
+def wall_arrangement_x5(maze: Maze) -> None:
+    PRESET_COMPACT_5x5.apply_to(maze)
+
+def wall_arrangement_x6(maze: Maze) -> None:
+    PRESET_COMPACT_6x6.apply_to(maze)
+
+def wall_arrangement_10x10(maze: Maze) -> None:
+    PRESET_COMPACT_10x10.apply_to(maze)
+
+def wall_arrangement_16x16(maze: Maze) -> None:
+    PRESET_COMPACT_16x16.apply_to(maze)
+
+def wall_arrangement_blank(maze: Maze) -> None:
+    PRESET_COMPACT_BLANK.apply_to(maze)
+
+def wall_arrangement_example1(maze: Maze) -> None:
+    PRESET_COMPACT_16x16.apply_to(maze)
+
+def wall_arrangement_example2(maze: Maze) -> None:
+    PRESET_COMPACT_EXAMPLE2.apply_to(maze)
+
+def wall_arrangement_example3(maze: Maze) -> None:
+    PRESET_COMPACT_EXAMPLE3.apply_to(maze)
+
+def wall_arrangement_example4(maze: Maze) -> None:
+    PRESET_COMPACT_EXAMPLE4.apply_to(maze)
+
+def wall_arrangement_example5(maze: Maze) -> None:
+    PRESET_COMPACT_EXAMPLE5.apply_to(maze)
+
+
+# ============================================================================
+# File Loaders & Savers (.num and .bin)
+# ============================================================================
+
+def load_num_maze(filepath: str) -> Maze:
+    """Load an MMS .num formatted file into a Maze instance."""
+    maze = create_empty_maze(16)
+    with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             parts = line.strip().split()
-            if len(parts) >= 6:
-                x, y, n, e, s, w = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
-                records.append((x, y, n, e, s, w))
-                if x > max_x: max_x = x
-                if y > max_y: max_y = y
-
-    maze = create_empty_maze(max(max_x + 1, max_y + 1))
-    for x, y, n, e, s, w in records:
-        cell = maze[x, y]
-        if n: cell.set_north_wall(maze)
-        if e: cell.set_east_wall(maze)
-        if s: cell.set_south_wall(maze)
-        if w: cell.set_west_wall(maze)
-
-    maze.update_all_wall_codes()
+            if len(parts) == 6:
+                x, y, n, e, s, w = map(int, parts)
+                cell = maze[x, y]
+                if n: cell.set_north_wall(maze)
+                if e: cell.set_east_wall(maze)
+                if s: cell.set_south_wall(maze)
+                if w: cell.set_west_wall(maze)
+            elif len(parts) == 4:
+                x, y, d, has_wall = map(int, parts)
+                if has_wall:
+                    cell = maze[x, y]
+                    if d == 0: cell.set_north_wall(maze)
+                    elif d == 1: cell.set_east_wall(maze)
+                    elif d == 2: cell.set_south_wall(maze)
+                    elif d == 3: cell.set_west_wall(maze)
     return maze
 
 
-PRESET_CONFIGURATIONS = {
+def load_bin_maze(filepath: str) -> Maze:
+    """Load a compact binary (.bin) maze file into a Maze instance."""
+    with open(filepath, 'rb') as f:
+        data = f.read()
+    compact = CompactMaze.from_bytes(data)
+    maze = create_empty_maze(compact.width)
+    compact.apply_to(maze)
+    return maze
+
+
+def save_bin_maze(maze: Maze, filepath: str) -> None:
+    """Save a Maze instance to a compact binary (.bin) file."""
+    compact = CompactMaze.from_maze(maze)
+    with open(filepath, 'wb') as f:
+        f.write(compact.to_bytes())
+
+
+# Preset lookup dispatch
+MAZE_PRESETS = {
     5: wall_arrangement_x5,
     6: wall_arrangement_x6,
     10: wall_arrangement_10x10,
     16: wall_arrangement_16x16,
+    "5": wall_arrangement_x5,
+    "6": wall_arrangement_x6,
+    "10": wall_arrangement_10x10,
+    "16": wall_arrangement_16x16,
     "example1": wall_arrangement_16x16,
     "example2": wall_arrangement_example2,
     "example3": wall_arrangement_example3,
@@ -1308,23 +243,14 @@ PRESET_CONFIGURATIONS = {
 
 def build_preset_maze(size_or_name: Union[int, str]) -> Maze:
     """
-    Build and return a populated Maze instance for the given size
-    (5, 6, 10, or 16) or name ('example1', 'example2', 'example3', 'example4', 'example5', 'blank').
+    Construct and populate a Maze using a preset identifier.
+    Supports integer sizes (5, 6, 10, 16) or named presets ('example1'..'example5', 'blank').
     """
-    if isinstance(size_or_name, int):
-        if size_or_name not in PRESET_CONFIGURATIONS:
-            raise ValueError(f"No preset maze configuration for size {size_or_name}. Available sizes: [5, 6, 10, 16]")
-        maze = create_empty_maze(size_or_name)
-        PRESET_CONFIGURATIONS[size_or_name](maze)
-        return maze
-    elif isinstance(size_or_name, str):
-        key = size_or_name.lower().replace(".num", "")
-        if key in PRESET_CONFIGURATIONS:
-            maze = create_empty_maze(16)
-            PRESET_CONFIGURATIONS[key](maze)
-            return maze
-        return load_num_maze(size_or_name)
-    else:
-        raise TypeError(f"Expected int or str, got {type(size_or_name)}")
-
-
+    if size_or_name not in MAZE_PRESETS:
+        raise ValueError(
+            f"Unsupported preset: {size_or_name}. Choose from {list(MAZE_PRESETS.keys())}"
+        )
+    size = 16 if isinstance(size_or_name, str) and not size_or_name.isdigit() else int(size_or_name)
+    maze = create_empty_maze(size)
+    MAZE_PRESETS[size_or_name](maze)
+    return maze

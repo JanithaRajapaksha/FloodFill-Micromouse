@@ -506,6 +506,12 @@ class MainWindow(QMainWindow):
         self.resize(1200, 780)
         self.setStyleSheet(DARK_THEME_QSS)
 
+        # Set official MMS Window Icon
+        assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_assets")
+        icon_path = os.path.join(assets_dir, "mms_icon.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+
         # Simulation Model
         self.sim = SimulationState(initial_preset)
 
@@ -597,20 +603,44 @@ class MainWindow(QMainWindow):
 
         layout.addSpacing(10)
 
-        # Speed Slider
+        # Speed Slider with MMS Turtle & Rabbit Icons
         layout.addWidget(QLabel("Speed:"))
+
+        assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_assets")
+        turtle_path = os.path.join(assets_dir, "icons", "turtle.png")
+        if os.path.exists(turtle_path):
+            lbl_turtle = QLabel()
+            lbl_turtle.setPixmap(QPixmap(turtle_path).scaled(18, 18, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            layout.addWidget(lbl_turtle)
+
         self.slider_speed = QSlider(Qt.Orientation.Horizontal)
         self.slider_speed.setRange(1, 50)  # 1 to 50 steps/sec
         self.slider_speed.setValue(self.sim.steps_per_sec)
-        self.slider_speed.setFixedWidth(120)
+        self.slider_speed.setFixedWidth(110)
         self.slider_speed.valueChanged.connect(self.on_speed_changed)
         layout.addWidget(self.slider_speed)
+
+        rabbit_path = os.path.join(assets_dir, "icons", "rabbit.png")
+        if os.path.exists(rabbit_path):
+            lbl_rabbit = QLabel()
+            lbl_rabbit.setPixmap(QPixmap(rabbit_path).scaled(18, 18, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            layout.addWidget(lbl_rabbit)
 
         self.lbl_speed = QLabel(f"{self.sim.steps_per_sec}x")
         self.lbl_speed.setFixedWidth(35)
         layout.addWidget(self.lbl_speed)
 
         layout.addSpacing(10)
+
+        # Open File Button
+        self.btn_open = QPushButton("Open...")
+        open_icon_path = os.path.join(assets_dir, "icons", "open.png")
+        if os.path.exists(open_icon_path):
+            self.btn_open.setIcon(QIcon(open_icon_path))
+        self.btn_open.clicked.connect(self.on_open_file_dialog)
+        layout.addWidget(self.btn_open)
+
+        layout.addSpacing(6)
 
         # Fog of War Checkbox
         self.chk_fog = QCheckBox("Fog of War")
@@ -727,6 +757,14 @@ class MainWindow(QMainWindow):
             self.sim.load_map(val)
 
         self._update_all()
+
+    def on_open_file_dialog(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Open Custom Micromouse Maze", "", "Maze Files (*.bin *.num);;All Files (*.*)"
+        )
+        if file_path:
+            self.sim.load_map(file_path)
+            self._update_all()
 
     def on_play_pause(self) -> None:
         if self.sim.finished:

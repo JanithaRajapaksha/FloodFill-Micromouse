@@ -31,16 +31,16 @@ floodfill_py/
 python3 floodfill_py/main.py
 ```
 
-### Graphical Pygame UI Demonstration
+### Graphical PyQt6 UI Demonstration
 ```bash
-# Run with default 10x10 maze
-python3 floodfill_py/ui.py
+# Run with default interactive simulator
+python floodfill_py/ui.py
 
-# Run with arbitrary maze dimension (e.g. 16x16 or 6x6)
-python3 floodfill_py/ui.py 16
-python3 floodfill_py/ui.py 6
+# Run with arbitrary maze preset (e.g. example2, 16, or 6)
+python floodfill_py/ui.py example2
+python floodfill_py/ui.py 10
 ```
-*(If Pygame is not installed, the UI gracefully falls back to console output).*
+*(Requires `PyQt6` for the modern dark desktop interface).*
 
 ---
 

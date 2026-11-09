@@ -1,81 +1,190 @@
 """
-Unified Interactive Micromouse Flood-Fill Simulator & Visualizer.
+Unified Interactive Micromouse Flood-Fill Simulator & Visualizer (PyQt6).
 
 Features:
-- Dynamic map switching (5x5, 6x6, 10x10, 16x16, MMS example1-example5, blank).
-- Active Fog-of-War (unseen walls faint/hidden, discovered walls vibrant red).
-- MMS-style real-time scrolling terminal log panel.
-- Interactive playback controls: Play/Pause, Step, Reset, Speed Adjustment (0.5x to Max).
+- Built with PyQt6: Modern, responsive dark-themed desktop application.
+- Dynamic Map Switching: Quick dropdown / buttons for presets (5x5, 6x6, 10x10, 16x16,
+  example1-example5, blank) plus custom .num and .bin file loading.
+- Active Fog-of-War: Unseen walls are faint/hidden, discovered walls are vibrant crimson.
+- MMS-Style Terminal Console: Rich color-coded log panel with autoscroll, clear, and copy.
+- Variable Speed Slider: 1 to 100 steps/sec with Play/Pause, Step, and Reset.
+- Real-Time Telemetry Dashboard: Coordinates, orientation, sensor readings, and % explored.
 - Visited cell tracking, goal highlights, and optional distance gradient overlay.
-- Keyboard shortcuts for all operations.
+- Full keyboard shortcuts.
 """
 
+import math
 import os
 import sys
-import time
 from typing import List, Optional, Set, Tuple
 
 # Enable local package imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
+from PyQt6.QtGui import (
+    QAction,
+    QBrush,
+    QColor,
+    QFont,
+    QIcon,
+    QPainter,
+    QPen,
+    QPixmap,
+    QPolygonF,
+    QTransform,
+)
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QProgressBar,
+    QPushButton,
+    QSlider,
+    QSplitter,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
 from cell import Cell, Maze, create_empty_maze
 from mouse import Mouse
 from floodFill import flood_fill
-from mazes import build_preset_maze, MAZE_PRESETS
-
-try:
-    import pygame
-except ImportError:
-    pygame = None
+from mazes import build_preset_maze, load_bin_maze, load_num_maze
 
 
 # ============================================================================
-# Color Palette (Modern Dark / Terminal Slate Theme)
+# Color Palette & QSS Styles
 # ============================================================================
 
-COLOR_BG = (11, 15, 25)            # Deep navy black
-COLOR_PANEL = (17, 24, 39)         # Dark slate panel
-COLOR_PANEL_BORDER = (31, 41, 55)  # Border gray
-COLOR_GRID = (30, 41, 59)          # Subtle grid line
-COLOR_CELL_BG = (15, 23, 42)       # Empty cell background
-
-# Cells
-COLOR_VISITED = (30, 58, 138)      # Blue visited tint
-COLOR_CURRENT = (59, 130, 246)     # Bright electric blue
-COLOR_GOAL = (5, 150, 105)         # Emerald green goal
-COLOR_START = (79, 70, 229)        # Indigo start cell
-
-# Walls
-COLOR_WALL_KNOWN = (239, 68, 68)   # Solid red (discovered walls)
-COLOR_WALL_FOG = (51, 65, 85)      # Faint slate (unseen / fog of war)
-COLOR_WALL_OUTER = (148, 163, 184) # Light slate perimeter
-
-# Text & Accents
-COLOR_TEXT_MAIN = (241, 245, 249)
-COLOR_TEXT_MUTED = (148, 163, 184)
-COLOR_TEXT_ACCENT = (56, 189, 248) # Cyan
-
-# Log Tags
-COLOR_LOG_INFO = (148, 163, 184)   # Slate
-COLOR_LOG_STEP = (56, 189, 248)    # Cyan
-COLOR_LOG_SENSE = (252, 211, 77)   # Yellow/Amber
-COLOR_LOG_MOVE = (96, 165, 250)    # Soft Blue
-COLOR_LOG_SUCCESS = (74, 222, 128) # Bright Green
-COLOR_LOG_WARN = (248, 113, 113)   # Red
+DARK_THEME_QSS = """
+QMainWindow {
+    background-color: #0B0F19;
+}
+QWidget {
+    background-color: #0B0F19;
+    color: #F1F5F9;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+}
+QFrame#panel {
+    background-color: #111827;
+    border: 1px solid #1F2937;
+    border-radius: 8px;
+}
+QPushButton {
+    background-color: #1F2937;
+    border: 1px solid #374151;
+    border-radius: 5px;
+    color: #F1F5F9;
+    padding: 5px 12px;
+    font-weight: 500;
+}
+QPushButton:hover {
+    background-color: #374151;
+    border-color: #6B7280;
+}
+QPushButton:pressed {
+    background-color: #2563EB;
+}
+QPushButton#primary {
+    background-color: #2563EB;
+    border-color: #3B82F6;
+    color: #FFFFFF;
+    font-weight: 600;
+}
+QPushButton#primary:hover {
+    background-color: #1D4ED8;
+}
+QComboBox {
+    background-color: #1F2937;
+    border: 1px solid #374151;
+    border-radius: 5px;
+    color: #F1F5F9;
+    padding: 4px 10px;
+    min-width: 110px;
+}
+QComboBox:hover {
+    border-color: #6B7280;
+}
+QComboBox QAbstractItemView {
+    background-color: #1F2937;
+    border: 1px solid #374151;
+    selection-background-color: #2563EB;
+    color: #F1F5F9;
+}
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #1F2937;
+    border-radius: 3px;
+}
+QSlider::sub-page:horizontal {
+    background: #3B82F6;
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    background: #60A5FA;
+    border: 1px solid #2563EB;
+    width: 16px;
+    margin-top: -5px;
+    margin-bottom: -5px;
+    border-radius: 8px;
+}
+QCheckBox {
+    spacing: 6px;
+    color: #E2E8F0;
+}
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #4B5563;
+    background: #1F2937;
+}
+QCheckBox::indicator:checked {
+    background: #2563EB;
+    border-color: #3B82F6;
+}
+QProgressBar {
+    background-color: #1F2937;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    text-align: center;
+    color: #FFFFFF;
+    font-size: 11px;
+    height: 14px;
+}
+QProgressBar::chunk {
+    background-color: #10B981;
+    border-radius: 3px;
+}
+QTextEdit#console {
+    background-color: #070A10;
+    border: 1px solid #1F2937;
+    border-radius: 6px;
+    color: #E2E8F0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    padding: 6px;
+}
+"""
 
 
 # ============================================================================
-# Simulation Engine
+# Simulation State Model
 # ============================================================================
 
 class SimulationState:
     """Manages real-time step-by-step Micromouse exploration state."""
 
-    SPEED_STEPS_PER_SEC = [2, 5, 10, 25, 100]  # 0.5x, 1x, 2x, 5x, Max
-    SPEED_LABELS = ["0.5x", "1x", "2x", "5x", "Max"]
-
     def __init__(self, map_preset: str = "example2"):
-        self.map_preset = map_preset
+        self.map_preset: str = map_preset
         self.ground_truth: Maze = None
         self.empty_maze: Maze = None
         self.size: int = 16
@@ -88,23 +197,29 @@ class SimulationState:
         self.finished: bool = False
         self.fog_of_war: bool = True
         self.show_distances: bool = True
-        self.speed_idx: int = 1  # Default 1x (5 steps/sec)
+        self.steps_per_sec: int = 5  # Default 5 steps/sec
 
-        self.logs: List[Tuple[str, Tuple[int, int, int]]] = []
-        self.log_scroll: int = 0
+        self.logs: List[Tuple[str, str]] = []  # (html_line, plain_line)
 
         self.load_map(map_preset)
 
-    def log(self, message: str, color: Tuple[int, int, int] = COLOR_LOG_INFO) -> None:
-        """Add an event message to the live log."""
-        self.logs.append((message, color))
-        # Autoscroll to bottom
-        self.log_scroll = max(0, len(self.logs) - 22)
+    def log(self, message: str, color_hex: str = "#94A3B8") -> None:
+        """Add a color-coded log message."""
+        html = f'<span style="color:{color_hex};">{message}</span>'
+        self.logs.append((html, message))
 
-    def load_map(self, preset: str) -> None:
-        """Initialize or switch to a new preset maze."""
-        self.map_preset = str(preset)
-        self.ground_truth = build_preset_maze(preset)
+    def load_map(self, preset_or_path: str) -> None:
+        """Load or switch to a preset or file-based maze."""
+        self.map_preset = str(preset_or_path)
+
+        if os.path.exists(preset_or_path):
+            if preset_or_path.endswith(".bin"):
+                self.ground_truth = load_bin_maze(preset_or_path)
+            else:
+                self.ground_truth = load_num_maze(preset_or_path)
+        else:
+            self.ground_truth = build_preset_maze(preset_or_path)
+
         self.size = self.ground_truth.size
         self.empty_maze = create_empty_maze(self.size)
         self.goal_cells = self.empty_maze.get_centers()
@@ -116,47 +231,37 @@ class SimulationState:
         self.finished = False
 
         self.logs.clear()
-        self.log(f"=== MMS Micromouse Simulator Initialized ===", COLOR_TEXT_ACCENT)
-        self.log(f"[INFO] Map: '{self.map_preset}' ({self.size}x{self.size})", COLOR_LOG_INFO)
-        self.log(f"[INFO] Goal located at center coordinates", COLOR_LOG_INFO)
+        self.log("=== MMS Micromouse Simulator Initialized ===", "#38BDF8")
+        self.log(f"[INFO] Map: '{self.map_preset}' ({self.size}x{self.size})", "#94A3B8")
+        self.log("[INFO] Goal located at center coordinates", "#94A3B8")
 
-        # Initial sense & flood fill
         self._sense_and_recalc()
-        cur_cell = self.empty_maze[0, 0]
-        self.log(f"[START] Position: (0, 0), facing NORTH, dist={cur_cell.value}", COLOR_LOG_STEP)
+        start_dist = self.empty_maze[0, 0].value
+        self.log(f"[START] Position: (0, 0), facing NORTH, dist={start_dist}", "#38BDF8")
 
     def reset(self) -> None:
-        """Reset current maze exploration from beginning."""
+        """Reset exploration from beginning."""
         self.load_map(self.map_preset)
 
     def _sense_and_recalc(self) -> None:
-        """Read ground truth sensors, update discovered map, and rerun flood fill."""
+        """Sense environment, update discovered map, and rerun flood fill."""
         self.mouse.update_sensors(self.ground_truth)
         self.mouse.update_maze_walls(self.empty_maze)
         self.empty_maze.reset_values()
         flood_fill(self.empty_maze, self.goal_cells)
 
     def step(self) -> bool:
-        """
-        Execute a single exploration step.
-        Returns True if simulation is ongoing, False if goal reached or blocked.
-        """
+        """Execute a single exploration step."""
         if self.finished:
             return False
 
         current_cell = self.empty_maze[self.mouse.x, self.mouse.y]
 
-        # Check goal reached
         if current_cell.value == 0:
             self.finished = True
             self.paused = True
-            self.log(f"[SUCCESS] Goal reached at ({self.mouse.x}, {self.mouse.y}) in {self.step_count} steps!", COLOR_LOG_SUCCESS)
+            self.log(f"[SUCCESS] Goal reached at ({self.mouse.x}, {self.mouse.y}) in {self.step_count} steps!", "#4ADE80")
             return False
-
-        # Read sensors and update discovered maze
-        f_wall = self.mouse.is_on_front_sensor
-        l_wall = self.mouse.is_on_left_sensor
-        r_wall = self.mouse.is_on_right_sensor
 
         next_val = current_cell.value - 1
         accessible_neighbors = []
@@ -170,12 +275,11 @@ class SimulationState:
         if self.mouse.x - 1 >= 0 and not current_cell.is_west_wall:
             accessible_neighbors.append(self.empty_maze[self.mouse.x - 1, self.mouse.y])
 
-        # Pick neighbor along descending gradient
         next_cell = next((n for n in accessible_neighbors if n.value == next_val), None)
 
-        # Fallback if in local minimum
+        # Local minimum fallback
         if next_cell is None:
-            self.log(f"[NAV] Local minimum at ({self.mouse.x}, {self.mouse.y}). Recalculating...", COLOR_LOG_WARN)
+            self.log(f"[NAV] Local minimum at ({self.mouse.x}, {self.mouse.y}). Recalculating...", "#F87171")
             self.empty_maze.reset_values()
             flood_fill(self.empty_maze, current_cell)
             accessible_neighbors.clear()
@@ -192,82 +296,561 @@ class SimulationState:
         if next_cell is None:
             self.finished = True
             self.paused = True
-            self.log(f"[ERROR] No path available from ({self.mouse.x}, {self.mouse.y})!", COLOR_LOG_WARN)
+            self.log(f"[ERROR] No path available from ({self.mouse.x}, {self.mouse.y})!", "#EF4444")
             return False
 
-        # Execute turn and move forward
+        # Execute move
         prev_x, prev_y = self.mouse.x, self.mouse.y
         self.mouse.update_mouse_orientation(current_cell, next_cell)
         self.mouse.move_forward()
         self.step_count += 1
         self.visited.add((self.mouse.x, self.mouse.y))
 
-        # Re-sense in new cell
         self._sense_and_recalc()
 
         orient_names = ["NORTH", "EAST", "SOUTH", "WEST"]
         orient_str = orient_names[self.mouse.orientation]
         self.log(
             f"[{self.step_count:03d}] Move: ({prev_x},{prev_y}) -> ({self.mouse.x},{self.mouse.y}) {orient_str} (d={next_cell.value})",
-            COLOR_LOG_MOVE
+            "#60A5FA"
         )
 
         if self.empty_maze[self.mouse.x, self.mouse.y].value == 0:
             self.finished = True
             self.paused = True
-            self.log(f"[SUCCESS] Goal reached at ({self.mouse.x}, {self.mouse.y}) in {self.step_count} steps!", COLOR_LOG_SUCCESS)
+            self.log(f"[SUCCESS] Goal reached at ({self.mouse.x}, {self.mouse.y}) in {self.step_count} steps!", "#4ADE80")
             return False
 
         return True
 
 
 # ============================================================================
-# Interactive UI Components (Pygame)
+# Maze Canvas Widget (QPainter)
 # ============================================================================
 
-class Button:
-    """Clickable UI button with hover effects and state toggles."""
+class MazeWidget(QWidget):
+    """Hardware-accelerated, high-DPI canvas rendering the Micromouse grid."""
 
-    def __init__(self, rect: Tuple[int, int, int, int], text: str, callback, active: bool = False):
-        self.rect = pygame.Rect(rect)
-        self.text = text
-        self.callback = callback
-        self.active = active
-        self.hovered = False
+    def __init__(self, sim: SimulationState, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+        self.sim = sim
+        self.setMinimumSize(400, 400)
 
-    def handle_event(self, event: pygame.event.Event) -> bool:
-        if event.type == pygame.MOUSEMOTION:
-            self.hovered = self.rect.collidepoint(event.pos)
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(event.pos):
-                self.callback()
-                return True
-        return False
+        # Pre-load mouse sprite asset if present
+        self.mouse_pixmap: Optional[QPixmap] = None
+        asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_assets", "mouse.png")
+        if os.path.exists(asset_path):
+            try:
+                self.mouse_pixmap = QPixmap(asset_path)
+            except Exception:
+                self.mouse_pixmap = None
 
-    def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
-        if self.active:
-            bg_color = (37, 99, 235)       # Active blue
-            border_color = (96, 165, 250)
-            text_color = (255, 255, 255)
-        elif self.hovered:
-            bg_color = (55, 65, 81)        # Hover gray
-            border_color = (148, 163, 184)
-            text_color = (255, 255, 255)
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+
+        width = self.width()
+        height = self.height()
+        dim = self.sim.size
+
+        # Fit square maze in viewport with margins
+        margin = 12
+        available_size = min(width, height) - margin * 2
+        cell_size = max(4, available_size // dim)
+        grid_pixel_size = cell_size * dim
+
+        origin_x = (width - grid_pixel_size) // 2
+        origin_y = (height - grid_pixel_size) // 2
+
+        # 1. Background Panel
+        bg_rect = QRectF(origin_x - 3, origin_y - 3, grid_pixel_size + 6, grid_pixel_size + 6)
+        painter.setPen(QPen(QColor("#1F2937"), 1))
+        painter.setBrush(QBrush(QColor("#111827")))
+        painter.drawRoundedRect(bg_rect, 4, 4)
+
+        # Colors
+        color_visited = QColor("#1E3A8A")
+        color_goal = QColor("#065F46")
+        color_start = QColor("#312E81")
+        color_current = QColor("#2563EB")
+        color_cell = QColor("#0F172A")
+        color_grid = QColor("#1E293B")
+
+        font_dist = QFont("Segoe UI", max(7, cell_size // 3))
+        painter.setFont(font_dist)
+
+        # 2. Draw Cells
+        for y in range(dim):
+            for x in range(dim):
+                cx = origin_x + x * cell_size
+                cy = origin_y + (dim - 1 - y) * cell_size
+                cell_rect = QRectF(cx, cy, cell_size, cell_size)
+
+                is_goal = (self.sim.empty_maze[x, y].value == 0) or any(g.x == x and g.y == y for g in self.sim.goal_cells)
+                is_start = (x == 0 and y == 0)
+                is_current = (x == self.sim.mouse.x and y == self.sim.mouse.y)
+                is_visited = (x, y) in self.sim.visited
+
+                if is_current:
+                    cell_color = color_current
+                elif is_goal:
+                    cell_color = color_goal
+                elif is_start:
+                    cell_color = color_start
+                elif is_visited:
+                    cell_color = color_visited
+                else:
+                    cell_color = color_cell
+
+                painter.setPen(QPen(color_grid, 1))
+                painter.setBrush(QBrush(cell_color))
+                painter.drawRect(cell_rect)
+
+                # Distance values
+                if self.sim.show_distances and (not self.sim.fog_of_war or is_visited or is_goal or is_start):
+                    dist_val = self.sim.empty_maze[x, y].value
+                    if dist_val >= 0:
+                        txt_color = QColor("#FFFFFF") if (is_current or is_goal or is_start) else QColor("#94A3B8")
+                        painter.setPen(QPen(txt_color))
+                        painter.drawText(cell_rect, Qt.AlignmentFlag.AlignCenter, str(dist_val))
+
+        # 3. Draw Walls
+        wall_thick_known = max(3.0, min(6.0, cell_size / 7.0))
+        wall_thick_fog = max(1.0, min(2.0, cell_size / 14.0))
+
+        pen_known = QPen(QColor("#EF4444"), wall_thick_known, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen_outer = QPen(QColor("#94A3B8"), wall_thick_known, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        pen_fog = QPen(QColor("#334155"), wall_thick_fog, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+
+        for y in range(dim):
+            for x in range(dim):
+                gt_cell = self.sim.ground_truth[x, y]
+                disc_cell = self.sim.empty_maze[x, y]
+
+                x0 = origin_x + x * cell_size
+                y0 = origin_y + (dim - 1 - y) * cell_size
+                x1 = x0 + cell_size
+                y1 = y0 + cell_size
+
+                is_boundary_n = (y == dim - 1)
+                is_boundary_s = (y == 0)
+                is_boundary_w = (x == 0)
+                is_boundary_e = (x == dim - 1)
+
+                def draw_wall_segment(has_gt: bool, has_disc: bool, is_boundary: bool, p0: QPointF, p1: QPointF):
+                    if not has_gt:
+                        return
+                    if has_disc or is_boundary or not self.sim.fog_of_war:
+                        painter.setPen(pen_outer if is_boundary else pen_known)
+                        painter.drawLine(p0, p1)
+                    elif self.sim.fog_of_war:
+                        painter.setPen(pen_fog)
+                        painter.drawLine(p0, p1)
+
+                # North
+                draw_wall_segment(gt_cell.is_north_wall, disc_cell.is_north_wall, is_boundary_n, QPointF(x0, y0), QPointF(x1, y0))
+                # South
+                draw_wall_segment(gt_cell.is_south_wall, disc_cell.is_south_wall, is_boundary_s, QPointF(x0, y1), QPointF(x1, y1))
+                # West
+                draw_wall_segment(gt_cell.is_west_wall, disc_cell.is_west_wall, is_boundary_w, QPointF(x0, y0), QPointF(x0, y1))
+                # East
+                draw_wall_segment(gt_cell.is_east_wall, disc_cell.is_east_wall, is_boundary_e, QPointF(x1, y0), QPointF(x1, y1))
+
+        # 4. Draw Mouse
+        mouse_cx = origin_x + self.sim.mouse.x * cell_size + cell_size / 2.0
+        mouse_cy = origin_y + (dim - 1 - self.sim.mouse.y) * cell_size + cell_size / 2.0
+        mouse_size = max(14.0, cell_size * 0.72)
+
+        rotations = {0: 0.0, 1: 90.0, 2: 180.0, 3: 270.0}
+        angle_deg = rotations.get(self.sim.mouse.orientation, 0.0)
+
+        painter.save()
+        painter.translate(mouse_cx, mouse_cy)
+        painter.rotate(angle_deg)
+
+        if self.mouse_pixmap is not None and not self.mouse_pixmap.isNull():
+            scaled_pix = self.mouse_pixmap.scaled(
+                int(mouse_size), int(mouse_size),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            painter.drawPixmap(int(-scaled_pix.width() / 2), int(-scaled_pix.height() / 2), scaled_pix)
         else:
-            bg_color = (31, 41, 55)        # Normal dark
-            border_color = (75, 85, 99)
-            text_color = (209, 213, 219)
+            # Procedural Chevron Pointer
+            rad = mouse_size / 2.0
+            pts = [
+                QPointF(0, -rad),
+                QPointF(rad * 0.75, rad),
+                QPointF(0, rad * 0.45),
+                QPointF(-rad * 0.75, rad),
+            ]
+            poly = QPolygonF(pts)
+            painter.setPen(QPen(QColor("#FFFFFF"), 1.5))
+            painter.setBrush(QBrush(QColor("#F43F5E")))
+            painter.drawPolygon(poly)
 
-        pygame.draw.rect(surface, bg_color, self.rect, border_radius=4)
-        pygame.draw.rect(surface, border_color, self.rect, width=1, border_radius=4)
-
-        text_surf = font.render(self.text, True, text_color)
-        text_rect = text_surf.get_rect(center=self.rect.center)
-        surface.blit(text_surf, text_rect)
+        painter.restore()
 
 
 # ============================================================================
-# Main Visualizer Application
+# Main Application Window (PyQt6)
+# ============================================================================
+
+class MainWindow(QMainWindow):
+    """Modern Desktop Window for Micromouse Navigation and Benchmarking."""
+
+    def __init__(self, initial_preset: str = "example2"):
+        super().__init__()
+        self.setWindowTitle("Micromouse Flood-Fill Simulator (PyQt6)")
+        self.resize(1200, 780)
+        self.setStyleSheet(DARK_THEME_QSS)
+
+        # Simulation Model
+        self.sim = SimulationState(initial_preset)
+
+        # Timer for stepping
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.on_timer_tick)
+
+        self._init_ui()
+        self._update_all()
+
+    def _init_ui(self) -> None:
+        # Central Widget & Root Layout
+        root_widget = QWidget(self)
+        self.setCentralWidget(root_widget)
+        root_layout = QVBoxLayout(root_widget)
+        root_layout.setContentsMargins(14, 12, 14, 12)
+        root_layout.setSpacing(10)
+
+        # Top Control Bar
+        top_bar = self._create_top_bar()
+        root_layout.addWidget(top_bar)
+
+        # Splitter: Left = Maze View, Right = Telemetry & Terminal Console
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(8)
+
+        # Left Canvas
+        self.maze_widget = MazeWidget(self.sim, self)
+        splitter.addWidget(self.maze_widget)
+        splitter.setStretchFactor(0, 3)
+
+        # Right Panel
+        right_panel = self._create_right_panel()
+        splitter.addWidget(right_panel)
+        splitter.setStretchFactor(1, 2)
+
+        root_layout.addWidget(splitter, stretch=1)
+
+    def _create_top_bar(self) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("panel")
+        layout = QHBoxLayout(frame)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(10)
+
+        # Map Selector
+        layout.addWidget(QLabel("<b>Map:</b>"))
+        self.combo_map = QComboBox()
+        self.preset_options = [
+            ("5x5", "5"),
+            ("6x6", "6"),
+            ("10x10", "10"),
+            ("16x16 (Ex1)", "16"),
+            ("example2", "example2"),
+            ("example3", "example3"),
+            ("example4", "example4"),
+            ("example5", "example5"),
+            ("blank", "blank"),
+            ("Load Custom .bin/.num...", "custom"),
+        ]
+        for label, val in self.preset_options:
+            self.combo_map.addItem(label, val)
+
+        idx = next((i for i, (_, val) in enumerate(self.preset_options) if val == self.sim.map_preset), 4)
+        self.combo_map.setCurrentIndex(idx)
+        self.combo_map.currentIndexChanged.connect(self.on_map_changed)
+        layout.addWidget(self.combo_map)
+
+        layout.addSpacing(10)
+
+        # Play / Pause
+        self.btn_play = QPushButton("Play")
+        self.btn_play.setObjectName("primary")
+        self.btn_play.setFixedWidth(75)
+        self.btn_play.clicked.connect(self.on_play_pause)
+        layout.addWidget(self.btn_play)
+
+        # Step
+        self.btn_step = QPushButton("Step")
+        self.btn_step.setFixedWidth(65)
+        self.btn_step.clicked.connect(self.on_step_clicked)
+        layout.addWidget(self.btn_step)
+
+        # Reset
+        self.btn_reset = QPushButton("Reset")
+        self.btn_reset.setFixedWidth(65)
+        self.btn_reset.clicked.connect(self.on_reset_clicked)
+        layout.addWidget(self.btn_reset)
+
+        layout.addSpacing(10)
+
+        # Speed Slider
+        layout.addWidget(QLabel("Speed:"))
+        self.slider_speed = QSlider(Qt.Orientation.Horizontal)
+        self.slider_speed.setRange(1, 50)  # 1 to 50 steps/sec
+        self.slider_speed.setValue(self.sim.steps_per_sec)
+        self.slider_speed.setFixedWidth(120)
+        self.slider_speed.valueChanged.connect(self.on_speed_changed)
+        layout.addWidget(self.slider_speed)
+
+        self.lbl_speed = QLabel(f"{self.sim.steps_per_sec}x")
+        self.lbl_speed.setFixedWidth(35)
+        layout.addWidget(self.lbl_speed)
+
+        layout.addSpacing(10)
+
+        # Fog of War Checkbox
+        self.chk_fog = QCheckBox("Fog of War")
+        self.chk_fog.setChecked(self.sim.fog_of_war)
+        self.chk_fog.toggled.connect(self.on_fog_toggled)
+        layout.addWidget(self.chk_fog)
+
+        # Distances Checkbox
+        self.chk_dist = QCheckBox("Distances")
+        self.chk_dist.setChecked(self.sim.show_distances)
+        self.chk_dist.toggled.connect(self.on_dist_toggled)
+        layout.addWidget(self.chk_dist)
+
+        layout.addStretch(1)
+        return frame
+
+    def _create_right_panel(self) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("panel")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        # 1. Telemetry Dashboard Card
+        telemetry_frame = QFrame()
+        telemetry_frame.setStyleSheet("background-color: #0F172A; border-radius: 6px; padding: 6px;")
+        t_layout = QGridLayout(telemetry_frame)
+        t_layout.setContentsMargins(8, 8, 8, 8)
+        t_layout.setSpacing(6)
+
+        t_layout.addWidget(QLabel("<b>ROBOT TELEMETRY</b>"), 0, 0, 1, 2)
+
+        self.lbl_status_badge = QLabel("[PAUSED]")
+        self.lbl_status_badge.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.lbl_status_badge.setStyleSheet("font-weight:bold; color:#FCD34D;")
+        t_layout.addWidget(self.lbl_status_badge, 0, 2)
+
+        t_layout.addWidget(QLabel("Coordinates:"), 1, 0)
+        self.lbl_coords = QLabel("(0, 0)")
+        self.lbl_coords.setStyleSheet("color:#38BDF8; font-weight:bold;")
+        t_layout.addWidget(self.lbl_coords, 1, 1)
+
+        t_layout.addWidget(QLabel("Heading:"), 1, 2)
+        self.lbl_heading = QLabel("NORTH")
+        self.lbl_heading.setStyleSheet("color:#60A5FA; font-weight:bold;")
+        t_layout.addWidget(self.lbl_heading, 1, 3)
+
+        t_layout.addWidget(QLabel("Steps Taken:"), 2, 0)
+        self.lbl_steps = QLabel("0")
+        self.lbl_steps.setStyleSheet("font-weight:bold;")
+        t_layout.addWidget(self.lbl_steps, 2, 1)
+
+        t_layout.addWidget(QLabel("Sensors (F/L/R):"), 2, 2)
+        self.lbl_sensors = QLabel("OPEN | WALL | OPEN")
+        self.lbl_sensors.setStyleSheet("color:#FCD34D;")
+        t_layout.addWidget(self.lbl_sensors, 2, 3)
+
+        # Progress bar
+        t_layout.addWidget(QLabel("Explored:"), 3, 0)
+        self.progress_explored = QProgressBar()
+        self.progress_explored.setRange(0, 100)
+        self.progress_explored.setValue(1)
+        t_layout.addWidget(self.progress_explored, 3, 1, 1, 3)
+
+        layout.addWidget(telemetry_frame)
+
+        # 2. Terminal Header with Actions
+        terminal_header = QHBoxLayout()
+        terminal_header.addWidget(QLabel("<b>MMS SIMULATOR CONSOLE</b>"))
+        terminal_header.addStretch(1)
+
+        btn_copy = QPushButton("Copy")
+        btn_copy.setFixedWidth(55)
+        btn_copy.clicked.connect(self.on_copy_logs)
+        terminal_header.addWidget(btn_copy)
+
+        btn_clear = QPushButton("Clear")
+        btn_clear.setFixedWidth(55)
+        btn_clear.clicked.connect(self.on_clear_logs)
+        terminal_header.addWidget(btn_clear)
+
+        layout.addLayout(terminal_header)
+
+        # 3. Terminal Log Output
+        self.console = QTextEdit()
+        self.console.setObjectName("console")
+        self.console.setReadOnly(True)
+        layout.addWidget(self.console, stretch=1)
+
+        # Bottom Shortcut Hints
+        hints = QLabel("Shortcuts: Space=Play | S/→=Step | R=Reset | F=Fog | D=Dist | 1-8=Map")
+        hints.setStyleSheet("color:#64748B; font-size:11px;")
+        layout.addWidget(hints)
+
+        return frame
+
+    # -------------------------------------------------------------------------
+    # Event Handlers
+    # -------------------------------------------------------------------------
+
+    def on_map_changed(self, idx: int) -> None:
+        val = self.combo_map.itemData(idx)
+        if val == "custom":
+            file_path, _ = QFileDialog.getOpenFileName(
+                self, "Open Custom Micromouse Maze", "", "Maze Files (*.bin *.num);;All Files (*.*)"
+            )
+            if file_path:
+                self.sim.load_map(file_path)
+            else:
+                # Revert selection
+                self.combo_map.setCurrentIndex(4)
+                return
+        else:
+            self.sim.load_map(val)
+
+        self._update_all()
+
+    def on_play_pause(self) -> None:
+        if self.sim.finished:
+            self.sim.reset()
+        self.sim.paused = not self.sim.paused
+        if not self.sim.paused:
+            self.timer.start(int(1000 / self.sim.steps_per_sec))
+        else:
+            self.timer.stop()
+        self._update_all()
+
+    def on_step_clicked(self) -> None:
+        self.sim.paused = True
+        self.timer.stop()
+        self.sim.step()
+        self._update_all()
+
+    def on_reset_clicked(self) -> None:
+        self.timer.stop()
+        self.sim.reset()
+        self._update_all()
+
+    def on_speed_changed(self, val: int) -> None:
+        self.sim.steps_per_sec = val
+        self.lbl_speed.setText(f"{val}x")
+        if not self.sim.paused:
+            self.timer.setInterval(int(1000 / self.sim.steps_per_sec))
+
+    def on_fog_toggled(self, checked: bool) -> None:
+        self.sim.fog_of_war = checked
+        self.maze_widget.update()
+
+    def on_dist_toggled(self, checked: bool) -> None:
+        self.sim.show_distances = checked
+        self.maze_widget.update()
+
+    def on_timer_tick(self) -> None:
+        if not self.sim.paused and not self.sim.finished:
+            still_running = self.sim.step()
+            if not still_running:
+                self.timer.stop()
+            self._update_all()
+
+    def on_clear_logs(self) -> None:
+        self.console.clear()
+        self.sim.logs.clear()
+
+    def on_copy_logs(self) -> None:
+        text = "\n".join(plain for _, plain in self.sim.logs)
+        QApplication.clipboard().setText(text)
+
+    def keyPressEvent(self, event) -> None:
+        key = event.key()
+        if key == Qt.Key.Key_Space:
+            self.on_play_pause()
+        elif key in (Qt.Key.Key_Right, Qt.Key.Key_S):
+            self.on_step_clicked()
+        elif key == Qt.Key.Key_R:
+            self.on_reset_clicked()
+        elif key == Qt.Key.Key_F:
+            self.chk_fog.toggle()
+        elif key == Qt.Key.Key_D:
+            self.chk_dist.toggle()
+        elif key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal, Qt.Key.Key_Up):
+            self.slider_speed.setValue(min(50, self.slider_speed.value() + 2))
+        elif key in (Qt.Key.Key_Minus, Qt.Key.Key_Down):
+            self.slider_speed.setValue(max(1, self.slider_speed.value() - 2))
+        elif Qt.Key.Key_1 <= key <= Qt.Key.Key_8:
+            idx = key - Qt.Key.Key_1
+            if idx < len(self.preset_options):
+                self.combo_map.setCurrentIndex(idx)
+        elif key == Qt.Key.Key_0:
+            # Blank preset index
+            self.combo_map.setCurrentIndex(8)
+        else:
+            super().keyPressEvent(event)
+
+    def _update_all(self) -> None:
+        # 1. Update Buttons & Labels
+        if self.sim.finished:
+            self.btn_play.setText("Restart")
+            self.btn_play.setStyleSheet("background-color: #059669;")
+            self.lbl_status_badge.setText("[FINISHED]")
+            self.lbl_status_badge.setStyleSheet("font-weight:bold; color:#4ADE80;")
+        elif self.sim.paused:
+            self.btn_play.setText("Play")
+            self.btn_play.setStyleSheet("")
+            self.lbl_status_badge.setText("[PAUSED]")
+            self.lbl_status_badge.setStyleSheet("font-weight:bold; color:#FCD34D;")
+        else:
+            self.btn_play.setText("Pause")
+            self.btn_play.setStyleSheet("background-color: #DC2626;")
+            self.lbl_status_badge.setText("[RUNNING]")
+            self.lbl_status_badge.setStyleSheet("font-weight:bold; color:#38BDF8;")
+
+        # 2. Update Telemetry
+        orient_names = ["NORTH", "EAST", "SOUTH", "WEST"]
+        self.lbl_coords.setText(f"({self.sim.mouse.x}, {self.sim.mouse.y})")
+        self.lbl_heading.setText(orient_names[self.sim.mouse.orientation])
+        self.lbl_steps.setText(str(self.sim.step_count))
+
+        f_txt = "WALL" if self.sim.mouse.is_on_front_sensor else "OPEN"
+        l_txt = "WALL" if self.sim.mouse.is_on_left_sensor else "OPEN"
+        r_txt = "WALL" if self.sim.mouse.is_on_right_sensor else "OPEN"
+        self.lbl_sensors.setText(f"{f_txt} | {l_txt} | {r_txt}")
+
+        total_cells = self.sim.size * self.sim.size
+        pct = int((len(self.sim.visited) / total_cells) * 100)
+        self.progress_explored.setValue(pct)
+        self.progress_explored.setFormat(f"{len(self.sim.visited)}/{total_cells} cells ({pct}%)")
+
+        # 3. Update Console Log
+        html_content = "<br>".join(html for html, _ in self.sim.logs)
+        self.console.setHtml(html_content)
+        # Scroll to bottom
+        sb = self.console.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
+        # 4. Repaint Maze Canvas
+        self.maze_widget.update()
+
+
+# ============================================================================
+# Entrypoint Wrappers
 # ============================================================================
 
 def run_simulation(
@@ -277,410 +860,23 @@ def run_simulation(
     window_size: int = 800,
     preset_name: Optional[str] = None,
 ) -> None:
-    """
-    Unified entrypoint for the Micromouse graphical simulation.
-    Supports backwards-compatible invocations from CLI or other modules.
-    """
-    if pygame is None:
-        print("Pygame is not installed. Please install it with: pip install pygame")
-        return
-
-    pygame.init()
-    pygame.font.init()
-
-    # Window geometry
-    WIN_WIDTH = 1180
-    WIN_HEIGHT = 740
-    screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
-    pygame.display.set_caption("Micromouse Flood-Fill Simulator (MMS Mode)")
-
-    font_main = pygame.font.SysFont("Segoe UI, Arial, sans-serif", 13)
-    font_bold = pygame.font.SysFont("Segoe UI, Arial, sans-serif", 13, bold=True)
-    font_title = pygame.font.SysFont("Segoe UI, Arial, sans-serif", 15, bold=True)
-    font_mono = pygame.font.SysFont("Consolas, Courier New, monospace", 12)
-
-    # Initialize simulation state
-    init_preset = preset_name or (str(maze_size) if maze is None else "example1")
-    sim = SimulationState(init_preset)
-
-    # Try loading custom mouse sprite
-    mouse_asset_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui_assets", "mouse.png")
-    raw_mouse_img = None
-    if os.path.exists(mouse_asset_path):
-        try:
-            raw_mouse_img = pygame.image.load(mouse_asset_path)
-        except Exception:
-            raw_mouse_img = None
-
-    # Maze render viewport
-    MAZE_X = 20
-    MAZE_Y = 60
-    MAZE_VIEW_SIZE = 660
-
-    # Log panel viewport
-    LOG_X = 700
-    LOG_Y = 60
-    LOG_WIDTH = 460
-    LOG_HEIGHT = 660
-
-    # -------------------------------------------------------------------------
-    # Buttons setup
-    # -------------------------------------------------------------------------
-    buttons: List[Button] = []
-
-    def make_map_btn(x, y, w, h, name):
-        def cb():
-            sim.load_map(name)
-            update_active_buttons()
-        return Button((x, y, w, h), name, cb)
-
-    # Top Bar - Presets
-    map_presets = ["5", "6", "10", "16", "example2", "example3", "example4", "example5", "blank"]
-    btn_x = 20
-    for p in map_presets:
-        label = f"{p}x{p}" if p.isdigit() else p
-        btn_w = 60 if len(label) <= 5 else 74
-        buttons.append(make_map_btn(btn_x, 15, btn_w, 30, p))
-        btn_x += btn_w + 6
-
-    # Action Buttons
-    def toggle_play():
-        if sim.finished:
-            sim.reset()
-        sim.paused = not sim.paused
-        update_active_buttons()
-
-    def do_step():
-        sim.paused = True
-        sim.step()
-        update_active_buttons()
-
-    def do_reset():
-        sim.reset()
-        update_active_buttons()
-
-    def toggle_fog():
-        sim.fog_of_war = not sim.fog_of_war
-        update_active_buttons()
-
-    def toggle_dist():
-        sim.show_distances = not sim.show_distances
-        update_active_buttons()
-
-    def cycle_speed():
-        sim.speed_idx = (sim.speed_idx + 1) % len(sim.SPEED_STEPS_PER_SEC)
-        update_active_buttons()
-
-    btn_play = Button((700, 15, 75, 30), "Play", toggle_play)
-    btn_step = Button((782, 15, 65, 30), "Step", do_step)
-    btn_reset = Button((854, 15, 65, 30), "Reset", do_reset)
-    btn_speed = Button((926, 15, 70, 30), f"Speed", cycle_speed)
-    btn_fog = Button((1003, 15, 80, 30), "Fog: ON", toggle_fog)
-    btn_dist = Button((1090, 15, 70, 30), "Dist: ON", toggle_dist)
-
-    action_buttons = [btn_play, btn_step, btn_reset, btn_speed, btn_fog, btn_dist]
-    buttons.extend(action_buttons)
-
-    def update_active_buttons():
-        btn_play.text = "Pause" if not sim.paused else "Play"
-        btn_play.active = not sim.paused
-        btn_fog.text = f"Fog: {'ON' if sim.fog_of_war else 'OFF'}"
-        btn_fog.active = sim.fog_of_war
-        btn_dist.text = f"Dist: {'ON' if sim.show_distances else 'OFF'}"
-        btn_dist.active = sim.show_distances
-        btn_speed.text = f"{sim.SPEED_LABELS[sim.speed_idx]}"
-
-        for b in buttons:
-            if b.text in map_presets or b.text == f"{sim.map_preset}x{sim.map_preset}":
-                b.active = (b.text == sim.map_preset or b.text == f"{sim.map_preset}x{sim.map_preset}")
-
-    update_active_buttons()
-
-    # -------------------------------------------------------------------------
-    # Render Loop
-    # -------------------------------------------------------------------------
-    clock = pygame.time.Clock()
-    last_step_time = time.time()
-    running = True
-
-    while running:
-        dt = clock.tick(60) / 1000.0
-        now = time.time()
-
-        # Handle Events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-                break
-
-            # Handle button clicks
-            handled = False
-            for b in buttons:
-                if b.handle_event(event):
-                    handled = True
-                    break
-
-            if handled:
-                continue
-
-            # Keyboard Shortcuts
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    toggle_play()
-                elif event.key == pygame.K_RIGHT or event.key == pygame.K_s:
-                    do_step()
-                elif event.key == pygame.K_r:
-                    do_reset()
-                elif event.key == pygame.K_f:
-                    toggle_fog()
-                elif event.key == pygame.K_d:
-                    toggle_dist()
-                elif event.key == pygame.K_UP or event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
-                    sim.speed_idx = min(len(sim.SPEED_STEPS_PER_SEC) - 1, sim.speed_idx + 1)
-                    update_active_buttons()
-                elif event.key == pygame.K_DOWN or event.key == pygame.K_MINUS:
-                    sim.speed_idx = max(0, sim.speed_idx - 1)
-                    update_active_buttons()
-                elif event.key == pygame.K_1:
-                    sim.load_map("5"); update_active_buttons()
-                elif event.key == pygame.K_2:
-                    sim.load_map("6"); update_active_buttons()
-                elif event.key == pygame.K_3:
-                    sim.load_map("10"); update_active_buttons()
-                elif event.key == pygame.K_4:
-                    sim.load_map("16"); update_active_buttons()
-                elif event.key == pygame.K_5:
-                    sim.load_map("example2"); update_active_buttons()
-                elif event.key == pygame.K_6:
-                    sim.load_map("example3"); update_active_buttons()
-                elif event.key == pygame.K_7:
-                    sim.load_map("example4"); update_active_buttons()
-                elif event.key == pygame.K_8:
-                    sim.load_map("example5"); update_active_buttons()
-                elif event.key == pygame.K_0:
-                    sim.load_map("blank"); update_active_buttons()
-
-            # Mouse wheel scrolling in log panel
-            elif event.type == pygame.MOUSEWHEEL:
-                mouse_pos = pygame.mouse.get_pos()
-                if LOG_X <= mouse_pos[0] <= LOG_X + LOG_WIDTH and LOG_Y <= mouse_pos[1] <= LOG_Y + LOG_HEIGHT:
-                    sim.log_scroll = max(0, min(len(sim.logs) - 1, sim.log_scroll - event.y))
-
-        # Simulation Step Update
-        if not sim.paused and not sim.finished:
-            target_rate = sim.SPEED_STEPS_PER_SEC[sim.speed_idx]
-            step_interval = 1.0 / target_rate
-            if now - last_step_time >= step_interval:
-                sim.step()
-                last_step_time = now
-                update_active_buttons()
-
-        # =====================================================================
-        # Rendering
-        # =====================================================================
-        screen.fill(COLOR_BG)
-
-        # 1. Render Top Control Bar
-        for b in buttons:
-            b.draw(screen, font_main)
-
-        # 2. Render Maze Grid
-        cell_size = MAZE_VIEW_SIZE // sim.size
-        actual_grid_size = cell_size * sim.size
-        grid_origin_x = MAZE_X + (MAZE_VIEW_SIZE - actual_grid_size) // 2
-        grid_origin_y = MAZE_Y + (MAZE_VIEW_SIZE - actual_grid_size) // 2
-
-        # Maze Container Box
-        pygame.draw.rect(
-            screen,
-            COLOR_PANEL,
-            (grid_origin_x - 4, grid_origin_y - 4, actual_grid_size + 8, actual_grid_size + 8),
-            border_radius=4
-        )
-
-        font_dist = pygame.font.SysFont("Segoe UI, Arial", max(10, cell_size // 3))
-
-        # Draw Cells
-        for y in range(sim.size):
-            for x in range(sim.size):
-                cx = grid_origin_x + x * cell_size
-                cy = grid_origin_y + (sim.size - 1 - y) * cell_size
-
-                cell_rect = pygame.Rect(cx, cy, cell_size, cell_size)
-
-                # Shading based on state
-                is_goal = (sim.empty_maze[x, y].value == 0) or any(g.x == x and g.y == y for g in sim.goal_cells)
-                is_start = (x == 0 and y == 0)
-                is_current = (x == sim.mouse.x and y == sim.mouse.y)
-                is_visited = (x, y) in sim.visited
-
-                if is_current:
-                    pygame.draw.rect(screen, COLOR_CURRENT, cell_rect)
-                elif is_goal:
-                    pygame.draw.rect(screen, COLOR_GOAL, cell_rect)
-                elif is_start:
-                    pygame.draw.rect(screen, COLOR_START, cell_rect)
-                elif is_visited:
-                    pygame.draw.rect(screen, COLOR_VISITED, cell_rect)
-                else:
-                    pygame.draw.rect(screen, COLOR_CELL_BG, cell_rect)
-
-                # Grid boundary
-                pygame.draw.rect(screen, COLOR_GRID, cell_rect, 1)
-
-                # Optional Distance Number
-                if sim.show_distances and (not sim.fog_of_war or is_visited or is_goal or is_start):
-                    dist_val = sim.empty_maze[x, y].value
-                    if dist_val >= 0:
-                        txt_col = (255, 255, 255) if (is_current or is_goal or is_start) else COLOR_TEXT_MUTED
-                        dist_surf = font_dist.render(str(dist_val), True, txt_col)
-                        screen.blit(dist_surf, dist_surf.get_rect(center=cell_rect.center))
-
-        # Draw Walls
-        wall_thick_known = max(3, min(6, cell_size // 8))
-        wall_thick_fog = max(1, min(2, cell_size // 14))
-
-        for y in range(sim.size):
-            for x in range(sim.size):
-                gt_cell = sim.ground_truth[x, y]
-                disc_cell = sim.empty_maze[x, y]
-
-                x0 = grid_origin_x + x * cell_size
-                y0 = grid_origin_y + (sim.size - 1 - y) * cell_size
-                x1 = x0 + cell_size
-                y1 = y0 + cell_size
-
-                # Outer perimeter is always solid
-                is_boundary_n = (y == sim.size - 1)
-                is_boundary_s = (y == 0)
-                is_boundary_w = (x == 0)
-                is_boundary_e = (x == sim.size - 1)
-
-                # Helper to choose wall color
-                def get_wall_style(has_gt_wall: bool, has_disc_wall: bool, is_boundary: bool):
-                    if not has_gt_wall:
-                        return None, 0
-                    if has_disc_wall or is_boundary or not sim.fog_of_war:
-                        return COLOR_WALL_KNOWN if not is_boundary else COLOR_WALL_OUTER, wall_thick_known
-                    # Fog of war active & unseen: faint color
-                    return COLOR_WALL_FOG, wall_thick_fog
-
-                # North
-                c, t = get_wall_style(gt_cell.is_north_wall, disc_cell.is_north_wall, is_boundary_n)
-                if c: pygame.draw.line(screen, c, (x0, y0), (x1, y0), t)
-
-                # South
-                c, t = get_wall_style(gt_cell.is_south_wall, disc_cell.is_south_wall, is_boundary_s)
-                if c: pygame.draw.line(screen, c, (x0, y1), (x1, y1), t)
-
-                # West
-                c, t = get_wall_style(gt_cell.is_west_wall, disc_cell.is_west_wall, is_boundary_w)
-                if c: pygame.draw.line(screen, c, (x0, y0), (x0, y1), t)
-
-                # East
-                c, t = get_wall_style(gt_cell.is_east_wall, disc_cell.is_east_wall, is_boundary_e)
-                if c: pygame.draw.line(screen, c, (x1, y0), (x1, y1), t)
-
-        # Draw Mouse
-        mouse_cx = grid_origin_x + sim.mouse.x * cell_size + cell_size // 2
-        mouse_cy = grid_origin_y + (sim.size - 1 - sim.mouse.y) * cell_size + cell_size // 2
-        mouse_scale = max(14, int(cell_size * 0.75))
-
-        rotations = {0: 0, 1: -90, 2: 180, 3: 90}
-        angle = rotations.get(sim.mouse.orientation, 0)
-
-        if raw_mouse_img is not None:
-            scaled_img = pygame.transform.scale(raw_mouse_img, (mouse_scale, mouse_scale))
-            rotated_img = pygame.transform.rotate(scaled_img, angle)
-            screen.blit(rotated_img, rotated_img.get_rect(center=(mouse_cx, mouse_cy)))
-        else:
-            # Procedural Chevron Pointer
-            rad = mouse_scale // 2
-            offsets = [(0, -rad), (rad * 0.75, rad), (0, rad * 0.5), (-rad * 0.75, rad)]
-            # Rotate points
-            pts = []
-            import math
-            theta = math.radians(angle)
-            cos_t = math.cos(theta)
-            sin_t = math.sin(theta)
-            for ox, oy in offsets:
-                rx = ox * cos_t - oy * sin_t
-                ry = ox * sin_t + oy * cos_t
-                pts.append((mouse_cx + rx, mouse_cy + ry))
-            pygame.draw.polygon(screen, (244, 63, 94), pts)
-            pygame.draw.polygon(screen, (255, 255, 255), pts, 1)
-
-        # 3. Render Right Terminal Log Panel
-        log_panel_rect = pygame.Rect(LOG_X, LOG_Y, LOG_WIDTH, LOG_HEIGHT)
-        pygame.draw.rect(screen, (9, 13, 22), log_panel_rect, border_radius=6)
-        pygame.draw.rect(screen, COLOR_PANEL_BORDER, log_panel_rect, width=1, border_radius=6)
-
-        # Terminal Header Bar
-        header_rect = pygame.Rect(LOG_X, LOG_Y, LOG_WIDTH, 34)
-        pygame.draw.rect(screen, (15, 23, 42), header_rect, border_top_left_radius=6, border_top_right_radius=6)
-        pygame.draw.line(screen, COLOR_PANEL_BORDER, (LOG_X, LOG_Y + 34), (LOG_X + LOG_WIDTH, LOG_Y + 34), 1)
-
-        title_surf = font_bold.render("MMS SIMULATOR CONSOLE", True, COLOR_TEXT_ACCENT)
-        screen.blit(title_surf, (LOG_X + 14, LOG_Y + 8))
-
-        # Status Badge
-        status_text = "FINISHED" if sim.finished else ("PAUSED" if sim.paused else "RUNNING")
-        status_color = COLOR_LOG_SUCCESS if sim.finished else (COLOR_LOG_SENSE if sim.paused else COLOR_TEXT_ACCENT)
-        stat_surf = font_bold.render(f"[{status_text}]", True, status_color)
-        screen.blit(stat_surf, (LOG_X + LOG_WIDTH - stat_surf.get_width() - 14, LOG_Y + 8))
-
-        # Terminal Log Entries
-        line_y = LOG_Y + 44
-        visible_lines = 23
-        start_idx = max(0, min(sim.log_scroll, max(0, len(sim.logs) - visible_lines)))
-        end_idx = min(len(sim.logs), start_idx + visible_lines)
-
-        for i in range(start_idx, end_idx):
-            msg, col = sim.logs[i]
-            # Truncate if too long
-            if len(msg) > 52:
-                msg = msg[:49] + "..."
-            txt_surf = font_mono.render(msg, True, col)
-            screen.blit(txt_surf, (LOG_X + 14, line_y))
-            line_y += 19
-
-        # Dashboard / Telemetry at Bottom of Log Panel
-        dash_y = LOG_Y + LOG_HEIGHT - 120
-        pygame.draw.line(screen, COLOR_PANEL_BORDER, (LOG_X, dash_y), (LOG_X + LOG_WIDTH, dash_y), 1)
-        pygame.draw.rect(screen, (15, 23, 42), (LOG_X, dash_y + 1, LOG_WIDTH, 119), border_bottom_left_radius=6, border_bottom_right_radius=6)
-
-        # Telemetry Text
-        orient_names = ["NORTH", "EAST", "SOUTH", "WEST"]
-        cur_orient = orient_names[sim.mouse.orientation]
-        visited_pct = (len(sim.visited) / (sim.size * sim.size)) * 100
-
-        screen.blit(font_bold.render("ROBOT TELEMETRY", True, COLOR_TEXT_MAIN), (LOG_X + 14, dash_y + 10))
-
-        row1 = f"Position: ({sim.mouse.x}, {sim.mouse.y})  |  Heading: {cur_orient}  |  Steps: {sim.step_count}"
-        row2 = f"Explored: {len(sim.visited)}/{sim.size*sim.size} cells ({visited_pct:.1f}%)"
-        f_stat = "WALL" if sim.mouse.is_on_front_sensor else "OPEN"
-        l_stat = "WALL" if sim.mouse.is_on_left_sensor else "OPEN"
-        r_stat = "WALL" if sim.mouse.is_on_right_sensor else "OPEN"
-        row3 = f"Sensors: [Front: {f_stat}] [Left: {l_stat}] [Right: {r_stat}]"
-
-        screen.blit(font_mono.render(row1, True, COLOR_TEXT_ACCENT), (LOG_X + 14, dash_y + 36))
-        screen.blit(font_mono.render(row2, True, COLOR_LOG_SUCCESS), (LOG_X + 14, dash_y + 58))
-        screen.blit(font_mono.render(row3, True, COLOR_LOG_SENSE), (LOG_X + 14, dash_y + 80))
-
-        # Bottom Hints
-        hints = "Space: Pause/Play | S: Step | R: Reset | F: Fog of War | D: Distances | +/-: Speed"
-        screen.blit(font_main.render(hints, True, COLOR_TEXT_MUTED), (MAZE_X, WIN_HEIGHT - 22))
-
-        pygame.display.flip()
-
-    pygame.quit()
-
-
-def main() -> None:
-    preset = "example2"
-    if len(sys.argv) > 1:
-        preset = sys.argv[1]
-    run_simulation(preset_name=preset)
+    """Entrypoint function compatible with existing callers."""
+    preset = preset_name or (str(maze_size) if maze is None else "example1")
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+    window = MainWindow(preset)
+    window.show()
+    app.exec()
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    args = argv if argv is not None else sys.argv[1:]
+    preset = args[0] if args else "example2"
+    app = QApplication(sys.argv)
+    window = MainWindow(preset)
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

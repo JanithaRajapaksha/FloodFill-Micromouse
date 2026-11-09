@@ -457,10 +457,10 @@ class MazeWidget(QWidget):
                 # East
                 draw_wall_segment(gt_cell.is_east_wall, disc_cell.is_east_wall, is_boundary_e, QPointF(x1, y0), QPointF(x1, y1))
 
-        # 4. Draw Mouse
+        # 4. Draw Mouse (Authentic MMS 2D Vector Robot: Body Pentagon + Left/Right Wheels)
         mouse_cx = origin_x + self.sim.mouse.x * cell_size + cell_size / 2.0
         mouse_cy = origin_y + (dim - 1 - self.sim.mouse.y) * cell_size + cell_size / 2.0
-        mouse_size = max(14.0, cell_size * 0.72)
+        mouse_size = max(16.0, cell_size * 0.76)
 
         rotations = {0: 0.0, 1: 90.0, 2: 180.0, 3: 270.0}
         angle_deg = rotations.get(self.sim.mouse.orientation, 0.0)
@@ -469,26 +469,38 @@ class MazeWidget(QWidget):
         painter.translate(mouse_cx, mouse_cy)
         painter.rotate(angle_deg)
 
-        if self.mouse_pixmap is not None and not self.mouse_pixmap.isNull():
-            scaled_pix = self.mouse_pixmap.scaled(
-                int(mouse_size), int(mouse_size),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            painter.drawPixmap(int(-scaled_pix.width() / 2), int(-scaled_pix.height() / 2), scaled_pix)
-        else:
-            # Procedural Chevron Pointer
-            rad = mouse_size / 2.0
-            pts = [
-                QPointF(0, -rad),
-                QPointF(rad * 0.75, rad),
-                QPointF(0, rad * 0.45),
-                QPointF(-rad * 0.75, rad),
-            ]
-            poly = QPolygonF(pts)
-            painter.setPen(QPen(QColor("#FFFFFF"), 1.5))
-            painter.setBrush(QBrush(QColor("#F43F5E")))
-            painter.drawPolygon(poly)
+        s = mouse_size
+
+        # Left and Right Wheels
+        wheel_w = max(2.5, s * 0.14)
+        wheel_h = max(6.0, s * 0.48)
+        wheel_y = -wheel_h / 2.0
+
+        painter.setPen(QPen(QColor("#0F172A"), 1.0))
+        painter.setBrush(QBrush(QColor("#1E293B")))
+        # Left wheel
+        painter.drawRoundedRect(QRectF(-s * 0.44, wheel_y, wheel_w, wheel_h), 1.5, 1.5)
+        # Right wheel
+        painter.drawRoundedRect(QRectF(s * 0.44 - wheel_w, wheel_y, wheel_w, wheel_h), 1.5, 1.5)
+
+        # Body Pentagon with Pointed Nose (Exact geometry from MMS Mouse.cpp)
+        body_pts = [
+            QPointF(-s * 0.28, s * 0.32),   # Back-left
+            QPointF(-s * 0.28, -s * 0.12),  # Front-left
+            QPointF(0.0, -s * 0.44),        # Pointed Nose (Heading)
+            QPointF(s * 0.28, -s * 0.12),   # Front-right
+            QPointF(s * 0.28, s * 0.32),    # Back-right
+        ]
+        body_poly = QPolygonF(body_pts)
+        painter.setPen(QPen(QColor("#38BDF8"), 1.5))
+        painter.setBrush(QBrush(QColor("#0284C7")))
+        painter.drawPolygon(body_poly)
+
+        # Center Status LED
+        led_color = QColor("#4ADE80") if not self.sim.finished else QColor("#FCD34D")
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(led_color))
+        painter.drawEllipse(QPointF(0.0, -s * 0.12), max(2.0, s * 0.09), max(2.0, s * 0.09))
 
         painter.restore()
 

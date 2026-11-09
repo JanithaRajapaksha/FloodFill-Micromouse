@@ -14,12 +14,8 @@ floodfill_py/
 ├── mazes/         # Benchmark test mazes (.num text and compact .bin)
 ├── floodFill.py   # Core BFS flood-fill algorithm and navigation runner
 ├── main.py        # Command-line navigation demonstration (10x10 benchmark)
-├── ui.py          # Unified Pygame visualization dynamically scaling to any maze size
-├── ui2.py         # 6x6 UI demonstration entrypoint
-├── ui_maze10.py   # 10x10 UI demonstration entrypoint
-├── ui_maze16.py   # 16x16 UI demonstration entrypoint
-└── ui_assets/
-    └── mouse.png  # Graphic asset for mouse sprite
+├── ui.py          # Unified interactive PyQt6 simulator (Fog of War, Speed Run, MMS console)
+└── ui_assets/     # Graphic assets (MMS icons, turtle/rabbit icons, mouse sprite)
 ```
 
 ---

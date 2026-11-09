@@ -4,8 +4,9 @@ A modular, hardware-independent, and embedded-friendly implementation of the cla
 
 The repository includes:
 1. **Embedded C Library (`floodfill_c/`)**: An ultra-compact (< 600 bytes RAM), zero-dynamic-memory (zero `malloc`) navigation engine ready for microcontrollers (STM32, ESP32, RP2040, AVR).
-2. **ESP32 Firmware Harness (`micromouse_esp32/`)**: A ready-to-flash test harness for Arduino IDE and PlatformIO with serial benchmarking and live 3-sensor hardware support.
-3. **Python Reference & Simulation (`floodfill_py/`)**: A reference implementation featuring a clean Pygame visual simulation scaling to arbitrary maze dimensions.
+2. **STM32 Firmware Project (`micromouse_stm32/`)**: A native STM32CubeIDE project for the STM32 Blue Pill (STM32F103C8T6) with HAL drivers, closed-loop motor control, and blind navigation.
+3. **ESP32 Firmware Harness (`micromouse_esp32/`)**: A ready-to-flash test harness for Arduino IDE and PlatformIO with serial benchmarking and live 3-sensor hardware support.
+4. **Python Reference & Simulation (`floodfill_py/`)**: A reference implementation featuring a clean Pygame visual simulation scaling to arbitrary maze dimensions.
 
 ---
 
@@ -90,6 +91,12 @@ FloodFill-Micromouse/
 │   ├── ui.py                # Unified Pygame visualization
 │   ├── main.py              # Python demonstration entrypoint
 │   └── README.md            # Python module documentation
+├── micromouse_stm32/        # Complete STM32CubeIDE project (STM32F103C8T6 Blue Pill)
+│   ├── .project / .cproject # STM32CubeIDE Eclipse project descriptors
+│   ├── micromouse_stm32.ioc # STM32CubeMX device & clock configuration
+│   ├── Core/                # Application headers, sources, and startup assembly
+│   ├── Drivers/             # CMSIS and STM32F1xx HAL drivers
+│   └── README.md            # STM32CubeIDE import, build, and debug guide
 ├── micromouse_esp32/        # Ready-to-flash ESP32 firmware project
 │   ├── micromouse_esp32.ino # Arduino sketch with interactive serial test harness
 │   ├── platformio.ini       # PlatformIO configuration
@@ -104,7 +111,7 @@ FloodFill-Micromouse/
 
 - **C**: C99 standard, portable across GCC, Clang, Xtensa GCC (ESP32), and ARM GCC (STM32/RP2040).
 - **Python**: Python 3.8+ (using standard library `collections.deque`; optional `pygame` for UI).
-- **Embedded Platforms**: ESP32 (Arduino / PlatformIO / ESP-IDF), STM32 (STM32CubeIDE / Keil / IAR).
+- **Embedded Platforms**: STM32 (STM32CubeIDE), ESP32 (Arduino / PlatformIO / ESP-IDF).
 
 ---
 
@@ -113,6 +120,7 @@ FloodFill-Micromouse/
 ### Prerequisites
 - **For C**: GCC or Clang with GNU Make.
 - **For Python**: Python 3.8+ (optional: `pip install pygame` for the visual UI).
+- **For STM32**: STM32CubeIDE (v1.12+) with ST-Link V2.
 - **For ESP32**: Arduino IDE or VS Code with PlatformIO.
 
 ### 1. Build and Run the C Library

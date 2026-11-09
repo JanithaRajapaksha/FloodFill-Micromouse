@@ -20,4 +20,23 @@ void wall_arrangement_16x16(MazeMap *map);
  */
 bool build_preset_maze(MazeMap *map, uint8_t size);
 
+
+void wall_arrangement_blank(MazeMap *map);
+void wall_arrangement_example1(MazeMap *map);
+void wall_arrangement_example2(MazeMap *map);
+void wall_arrangement_example3(MazeMap *map);
+void wall_arrangement_example4(MazeMap *map);
+void wall_arrangement_example5(MazeMap *map);
+
+/**
+ * Initialize and populate a MazeMap with an MMS preset ("example1", "example2", "example3", "example4", "example5", "blank").
+ */
+bool build_preset_mms_maze(MazeMap *map, const char *name);
+
+/**
+ * Load an MMS .num formatted file into a MazeMap.
+ */
+bool maze_map_load_num_file(MazeMap *map, const char *filepath);
+
 #endif /* MAZES_H */
+

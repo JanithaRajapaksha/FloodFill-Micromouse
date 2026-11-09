@@ -209,6 +209,17 @@ class TestFloodFillRegression(unittest.TestCase):
         self.assertEqual(path[0], [0, 1, 0])
         self.assertEqual(path[-1], [7, 7, 1])
 
+    def test_mms_example_mazes(self):
+        for name in ["example1", "example2", "example3", "example4", "example5", "blank"]:
+            maze = build_preset_maze(name)
+            self.assertEqual(maze.size, 16)
+            centers = maze.get_centers()
+            self.assertEqual(len(centers), 4)
+            path = navigate_ui(Mouse(), build_preset_maze(name))
+            self.assertGreater(len(path), 0)
+            final_cell = maze[path[-1][0], path[-1][1]]
+            self.assertIn(final_cell, centers)
+
 
 if __name__ == "__main__":
     unittest.main()

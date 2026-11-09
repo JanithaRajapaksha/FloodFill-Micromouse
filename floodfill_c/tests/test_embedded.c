@@ -287,6 +287,43 @@ static void test_end_to_end_navigation_trajectories(void) {
     printf("PASS: test_end_to_end_navigation_trajectories\n");
 }
 
+static void test_mms_example_presets(void) {
+    const char *names[] = {"example1", "example2", "example3", "example4", "example5", "blank"};
+    for (int i = 0; i < 6; ++i) {
+        MazeMap ground_truth;
+        bool ok = build_preset_mms_maze(&ground_truth, names[i]);
+        TEST_ASSERT(ok, "MMS preset must build successfully");
+        TEST_ASSERT(ground_truth.size == 16, "MMS preset must be 16x16");
+
+        uint8_t cx[4], cy[4];
+        uint8_t nc = maze_map_get_centers(&ground_truth, cx, cy);
+        TEST_ASSERT(nc == 4, "Even maze must have 4 center cells");
+
+        Navigator nav;
+        navigator_init(&nav, ground_truth.size, 0, 0, DIR_NORTH);
+
+        int steps = 0;
+        while (steps < 1000) {
+            bool f = maze_map_has_wall(&ground_truth, nav.x, nav.y, nav.orientation);
+            bool l = maze_map_has_wall(&ground_truth, nav.x, nav.y, (Direction)((nav.orientation + 3U) % 4U));
+            bool r = maze_map_has_wall(&ground_truth, nav.x, nav.y, (Direction)((nav.orientation + 1U) % 4U));
+
+            ProximitySensorArray sensors = sensor_make_binary(f, l, r);
+            DetectedWalls walls = sensor_interface_evaluate(&sensors);
+
+            NavCommand cmd = navigator_step(&nav, &walls);
+            if (cmd == NAV_CMD_STOP) {
+                break;
+            }
+            steps++;
+        }
+
+        bool at_center = (nav.x == 7 || nav.x == 8) && (nav.y == 7 || nav.y == 8);
+        TEST_ASSERT(at_center, "Robot must reach one of the center cells (7,7), (8,7), (7,8), (8,8)");
+    }
+    printf("PASS: test_mms_example_presets\n");
+}
+
 int main(void) {
     printf("=========================================\n");
     printf("Running Embedded Flood-Fill Test Suite...\n");
@@ -298,6 +335,7 @@ int main(void) {
     test_motor_controller_translation();
     test_floodfill_gradient_distances();
     test_end_to_end_navigation_trajectories();
+    test_mms_example_presets();
 
     printf("\nTotal assertions checked: %d\n", g_tests_run);
     if (g_tests_failed == 0) {

@@ -1,18 +1,10 @@
 """
-Unified Interactive Micromouse Flood-Fill Simulator & Visualizer (PyQt6).
+Unified Interactive Micromouse Visualizer & GUI (PyQt6).
 
-Features:
-- Dual-Phase Navigation:
-  * Phase 1: Search & Exploration run with real-time sensing and active Fog of War.
-  * Phase 2: High-Speed Sprint ("Speed Run") executing the discovered optimal path from memory!
-- Modern PyQt6 Dark Interface: MMS-styled dark slate theme with native high-DPI canvas.
-- Dynamic Map Switching: Presets (5x5, 6x6, 10x10, 16x16, example1-example5, blank)
-  and custom .bin / .num file loading.
-- Golden Trajectory Ribbon: Displays the shortest memory path discovered during search.
-- MMS Terminal Log Console: Rich colored event log with copy, clear, and autoscroll.
-- Live Robot Telemetry: Position, heading, step comparisons, sensor states, and % explored.
-- Procedural MMS Vector Robot: Chassis pentagon, dual tread wheels, and racing thrusters.
-- Full keyboard shortcuts: Space (Play/Pause), G (Speed Run), S/Right (Step), R (Reset), F (Fog), D (Dist).
+Strictly decoupled presentation layer:
+- All navigation, flood-fill, and speed-run path planning logic is handled by
+  `floodFill.py` (MicromouseEngine).
+- This module handles ONLY GUI rendering, Qt widgets, user controls, and log display.
 """
 
 import math
@@ -53,10 +45,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from cell import Cell, Maze, create_empty_maze
-from mouse import Mouse
-from floodFill import flood_fill
+from cell import Maze
 from mazes import build_preset_maze, load_bin_maze, load_num_maze
+from floodFill import MicromouseEngine
 
 
 # ============================================================================
@@ -190,51 +181,33 @@ QTextEdit#console {
 
 
 # ============================================================================
-# Simulation State Model (Search Phase & Speed Run Phase)
+# GUI Presentation Controller (Delegates algorithm to MicromouseEngine)
 # ============================================================================
 
-class SimulationState:
-    """Manages real-time step-by-step Micromouse exploration and speed run."""
+class UIController:
+    """Manages GUI-specific state (speed, paused, logs) and delegates all algorithm to MicromouseEngine."""
 
-    MODE_SEARCH = "SEARCH"
-    MODE_SPEED_RUN = "SPEED_RUN"
-
-    def __init__(self, map_preset: str = "example2"):
-        self.map_preset: str = map_preset
+    def __init__(self, preset_or_path: str = "example2"):
+        self.preset_or_path = preset_or_path
         self.ground_truth: Maze = None
-        self.empty_maze: Maze = None
-        self.size: int = 16
-        self.mouse: Mouse = None
-        self.goal_cells: List[Cell] = []
-        self.visited: Set[Tuple[int, int]] = set()
+        self.engine: MicromouseEngine = None
 
-        # Navigation Modes & Path Memory
-        self.mode: str = self.MODE_SEARCH
-        self.optimal_path: List[Tuple[int, int, int]] = []  # List of (x, y, orient)
-        self.speed_run_index: int = 0
-        self.search_step_count: int = 0
-        self.speed_step_count: int = 0
-        self.speed_visited: Set[Tuple[int, int]] = set()
+        self.paused = True
+        self.fog_of_war = True
+        self.show_distances = True
+        self.steps_per_sec = 5
 
-        self.step_count: int = 0
-        self.paused: bool = True
-        self.finished: bool = False
-        self.fog_of_war: bool = True
-        self.show_distances: bool = True
-        self.steps_per_sec: int = 5  # Default 5 steps/sec
-
-        self.logs: List[Tuple[str, str]] = []  # (html_line, plain_line)
-
-        self.load_map(map_preset)
+        self.logs: List[Tuple[str, str]] = []
+        self.load_map(preset_or_path)
 
     def log(self, message: str, color_hex: str = "#94A3B8") -> None:
-        """Add a color-coded log message."""
+        """Add a color-coded log message for display."""
         html = f'<span style="color:{color_hex};">{message}</span>'
         self.logs.append((html, message))
 
     def load_map(self, preset_or_path: str) -> None:
-        """Load or switch to a preset or file-based maze."""
-        self.map_preset = str(preset_or_path)
+        """Load ground truth maze and initialize decoupled navigation engine."""
+        self.preset_or_path = str(preset_or_path)
 
         if os.path.exists(preset_or_path):
             if preset_or_path.endswith(".bin"):
@@ -244,224 +217,94 @@ class SimulationState:
         else:
             self.ground_truth = build_preset_maze(preset_or_path)
 
-        self.size = self.ground_truth.size
-        self.empty_maze = create_empty_maze(self.size)
-        self.goal_cells = self.empty_maze.get_centers()
-
-        self.mouse = Mouse(0, 0, Mouse.NORTH)
-        self.visited = {(0, 0)}
-        self.step_count = 0
+        # Delegate navigation logic to MicromouseEngine from floodFill.py
+        self.engine = MicromouseEngine(self.ground_truth)
         self.paused = True
-        self.finished = False
-
-        self.mode = self.MODE_SEARCH
-        self.optimal_path = []
-        self.speed_run_index = 0
-        self.search_step_count = 0
-        self.speed_step_count = 0
-        self.speed_visited = set()
 
         self.logs.clear()
         self.log("=== MMS Micromouse Simulator Initialized ===", "#38BDF8")
-        self.log(f"[INFO] Map: '{self.map_preset}' ({self.size}x{self.size})", "#94A3B8")
-        self.log("[INFO] Phase 1: Search & Maze Exploration Run", "#94A3B8")
-
-        self._sense_and_recalc()
-        start_dist = self.empty_maze[0, 0].value
+        self.log(f"[INFO] Map: '{self.preset_or_path}' ({self.engine.size}x{self.engine.size})", "#94A3B8")
+        self.log("[INFO] Phase 1: Search & Exploration Run", "#94A3B8")
+        start_dist = self.engine.empty_maze[0, 0].value
         self.log(f"[START] Position: (0, 0), facing NORTH, dist={start_dist}", "#38BDF8")
 
     def reset(self) -> None:
-        """Reset exploration from beginning."""
-        self.load_map(self.map_preset)
-
-    def _sense_and_recalc(self) -> None:
-        """Sense environment, update discovered map, and rerun flood fill."""
-        self.mouse.update_sensors(self.ground_truth)
-        self.mouse.update_maze_walls(self.empty_maze)
-        self.empty_maze.reset_values()
-        flood_fill(self.empty_maze, self.goal_cells)
-
-    def compute_optimal_path(self) -> List[Tuple[int, int, int]]:
-        """
-        Extract the shortest trajectory from (0, 0) to the goal using the
-        robot's memory (the walls discovered in empty_maze during search).
-        """
-        self.empty_maze.reset_values()
-        flood_fill(self.empty_maze, self.goal_cells)
-
-        path = []
-        cx, cy = 0, 0
-
-        while self.empty_maze[cx, cy].value != 0:
-            cur = self.empty_maze[cx, cy]
-            neighs = []
-            if cy + 1 < self.size and not cur.is_north_wall:
-                neighs.append((cx, cy + 1, Mouse.NORTH))
-            if cx + 1 < self.size and not cur.is_east_wall:
-                neighs.append((cx + 1, cy, Mouse.EAST))
-            if cy - 1 >= 0 and not cur.is_south_wall:
-                neighs.append((cx, cy - 1, Mouse.SOUTH))
-            if cx - 1 >= 0 and not cur.is_west_wall:
-                neighs.append((cx - 1, cy, Mouse.WEST))
-
-            nxt = next((n for n in neighs if self.empty_maze[n[0], n[1]].value == cur.value - 1), None)
-            if nxt is None:
-                break
-            path.append(nxt)
-            cx, cy, _ = nxt
-
-        return path
-
-    def start_speed_run(self) -> bool:
-        """Launch Phase 2: High-speed sprint along the discovered memory path."""
-        if not self.optimal_path:
-            self.optimal_path = self.compute_optimal_path()
-
-        if not self.optimal_path:
-            self.log("[ERROR] Cannot start speed run: no route to goal found in memory!", "#EF4444")
-            return False
-
-        self.mode = self.MODE_SPEED_RUN
-        self.mouse.x = 0
-        self.mouse.y = 0
-        self.mouse.orientation = Mouse.NORTH
-        self.speed_run_index = 0
-        self.speed_step_count = 0
-        self.speed_visited = {(0, 0)}
-        self.finished = False
-        self.paused = False
-
-        self.log("=========================================", "#F59E0B")
-        self.log("=== 🚀 PHASE 2: SPEED RUN LAUNCHED (MEMORY MODE) ===", "#F59E0B")
-        self.log(f"[SPEED RUN] Driving optimal path: {len(self.optimal_path)} steps straight to goal", "#F59E0B")
-        return True
+        """Reset simulator state."""
+        self.load_map(self.preset_or_path)
 
     def step(self) -> bool:
-        """Execute a single navigation step (Search or Speed Run)."""
-        if self.finished:
-            return False
-
-        # ---------------------------------------------------------------------
-        # PHASE 2: SPEED RUN (FAST MEMORY RUN)
-        # ---------------------------------------------------------------------
-        if self.mode == self.MODE_SPEED_RUN:
-            if self.speed_run_index < len(self.optimal_path):
-                nxt_x, nxt_y, nxt_orient = self.optimal_path[self.speed_run_index]
-                prev_x, prev_y = self.mouse.x, self.mouse.y
-
-                self.mouse.x = nxt_x
-                self.mouse.y = nxt_y
-                self.mouse.orientation = nxt_orient
-                self.speed_step_count += 1
-                self.speed_run_index += 1
-                self.speed_visited.add((nxt_x, nxt_y))
-
-                orient_names = ["NORTH", "EAST", "SOUTH", "WEST"]
-                self.log(
-                    f"[{self.speed_step_count:02d} 🚀] Fast Move: ({prev_x},{prev_y}) -> ({nxt_x},{nxt_y}) {orient_names[nxt_orient]}",
-                    "#F59E0B"
-                )
-
-                if self.speed_run_index >= len(self.optimal_path):
-                    self.finished = True
-                    self.paused = True
-                    saved = self.search_step_count - self.speed_step_count
-                    pct = (saved / max(1, self.search_step_count)) * 100
-                    self.log("=========================================", "#4ADE80")
-                    self.log(
-                        f"[VICTORY 🏆] Speed Run Complete! Goal reached in {self.speed_step_count} steps! "
-                        f"(Search took {self.search_step_count} steps - {saved} steps / {pct:.1f}% saved!)",
-                        "#4ADE80"
-                    )
-                    return False
-                return True
-            else:
-                self.finished = True
-                self.paused = True
-                return False
-
-        # ---------------------------------------------------------------------
-        # PHASE 1: SEARCH & EXPLORATION RUN
-        # ---------------------------------------------------------------------
-        current_cell = self.empty_maze[self.mouse.x, self.mouse.y]
-
-        if current_cell.value == 0:
-            self.finished = True
-            self.paused = True
-            self.search_step_count = self.step_count
-            self.optimal_path = self.compute_optimal_path()
-            saved = self.search_step_count - len(self.optimal_path)
-            self.log("=========================================", "#4ADE80")
-            self.log(f"[SUCCESS] Search complete! Goal reached at ({self.mouse.x}, {self.mouse.y}) in {self.search_step_count} steps!", "#4ADE80")
-            self.log(f"[MEMORY] Optimal speed-run route: {len(self.optimal_path)} steps (saves {saved} steps!)", "#38BDF8")
-            self.log("[READY] Click 'Speed Run 🚀' or press G to execute fast sprint!", "#FCD34D")
-            return False
-
-        next_val = current_cell.value - 1
-        accessible_neighbors = []
-
-        if self.mouse.y + 1 < self.size and not current_cell.is_north_wall:
-            accessible_neighbors.append(self.empty_maze[self.mouse.x, self.mouse.y + 1])
-        if self.mouse.x + 1 < self.size and not current_cell.is_east_wall:
-            accessible_neighbors.append(self.empty_maze[self.mouse.x + 1, self.mouse.y])
-        if self.mouse.y - 1 >= 0 and not current_cell.is_south_wall:
-            accessible_neighbors.append(self.empty_maze[self.mouse.x, self.mouse.y - 1])
-        if self.mouse.x - 1 >= 0 and not current_cell.is_west_wall:
-            accessible_neighbors.append(self.empty_maze[self.mouse.x - 1, self.mouse.y])
-
-        next_cell = next((n for n in accessible_neighbors if n.value == next_val), None)
-
-        # Local minimum fallback
-        if next_cell is None:
-            self.log(f"[NAV] Local minimum at ({self.mouse.x}, {self.mouse.y}). Recalculating...", "#F87171")
-            self.empty_maze.reset_values()
-            flood_fill(self.empty_maze, current_cell)
-            accessible_neighbors.clear()
-            if self.mouse.y + 1 < self.size and not current_cell.is_north_wall:
-                accessible_neighbors.append(self.empty_maze[self.mouse.x, self.mouse.y + 1])
-            if self.mouse.x + 1 < self.size and not current_cell.is_east_wall:
-                accessible_neighbors.append(self.empty_maze[self.mouse.x + 1, self.mouse.y])
-            if self.mouse.y - 1 >= 0 and not current_cell.is_south_wall:
-                accessible_neighbors.append(self.empty_maze[self.mouse.x, self.mouse.y - 1])
-            if self.mouse.x - 1 >= 0 and not current_cell.is_west_wall:
-                accessible_neighbors.append(self.empty_maze[self.mouse.x - 1, self.mouse.y])
-            next_cell = next((n for n in accessible_neighbors if n.value == next_val), None)
-
-        if next_cell is None:
-            self.finished = True
-            self.paused = True
-            self.log(f"[ERROR] No path available from ({self.mouse.x}, {self.mouse.y})!", "#EF4444")
-            return False
-
-        # Execute move
-        prev_x, prev_y = self.mouse.x, self.mouse.y
-        self.mouse.update_mouse_orientation(current_cell, next_cell)
-        self.mouse.move_forward()
-        self.step_count += 1
-        self.visited.add((self.mouse.x, self.mouse.y))
-
-        self._sense_and_recalc()
-
+        """Call algorithm engine step and format visual logs."""
+        evt = self.engine.step()
         orient_names = ["NORTH", "EAST", "SOUTH", "WEST"]
-        orient_str = orient_names[self.mouse.orientation]
-        self.log(
-            f"[{self.step_count:03d}] Move: ({prev_x},{prev_y}) -> ({self.mouse.x},{self.mouse.y}) {orient_str} (d={next_cell.value})",
-            "#60A5FA"
-        )
 
-        if self.empty_maze[self.mouse.x, self.mouse.y].value == 0:
-            self.finished = True
-            self.paused = True
-            self.search_step_count = self.step_count
-            self.optimal_path = self.compute_optimal_path()
-            saved = self.search_step_count - len(self.optimal_path)
+        if evt["type"] == "SEARCH_STEP":
+            px, py = evt["prev_pos"]
+            cx, cy = evt["pos"]
+            o = orient_names[evt["orientation"]]
+            d = evt["dist"]
+            self.log(f"[{evt['step_num']:03d}] Move: ({px},{py}) -> ({cx},{cy}) {o} (d={d})", "#60A5FA")
+            return True
+
+        elif evt["type"] == "SEARCH_COMPLETE":
+            px, py = evt.get("prev_pos", evt["pos"])
+            cx, cy = evt["pos"]
+            o = orient_names[evt["orientation"]]
+            if "prev_pos" in evt:
+                self.log(f"[{evt['step_num']:03d}] Move: ({px},{py}) -> ({cx},{cy}) {o} (d=0)", "#60A5FA")
             self.log("=========================================", "#4ADE80")
-            self.log(f"[SUCCESS] Search complete! Goal reached at ({self.mouse.x}, {self.mouse.y}) in {self.search_step_count} steps!", "#4ADE80")
-            self.log(f"[MEMORY] Optimal speed-run route: {len(self.optimal_path)} steps (saves {saved} steps!)", "#38BDF8")
+            self.log(f"[SUCCESS] Search complete! Goal reached in {evt['search_steps']} exploration steps!", "#4ADE80")
+            self.log(
+                f"[MEMORY] Explored-only speed-run route: {evt['speed_path_length']} steps strictly through visited cells",
+                "#38BDF8"
+            )
             self.log("[READY] Click 'Speed Run 🚀' or press G to execute fast sprint!", "#FCD34D")
+            self.paused = True
             return False
 
-        return True
+        elif evt["type"] == "SPEED_RUN_STEP":
+            px, py = evt["prev_pos"]
+            cx, cy = evt["pos"]
+            o = orient_names[evt["orientation"]]
+            self.log(f"[{evt['step_num']:02d} 🚀] Fast Move: ({px},{py}) -> ({cx},{cy}) {o}", "#F59E0B")
+            return True
+
+        elif evt["type"] == "SPEED_RUN_COMPLETE":
+            px, py = evt["prev_pos"]
+            cx, cy = evt["pos"]
+            o = orient_names[evt["orientation"]]
+            self.log(f"[{evt['step_num']:02d} 🚀] Fast Move: ({px},{py}) -> ({cx},{cy}) {o}", "#F59E0B")
+            saved = evt["search_steps"] - evt["total_speed_steps"]
+            pct = (saved / max(1, evt["search_steps"])) * 100
+            self.log("=========================================", "#4ADE80")
+            self.log(
+                f"[VICTORY 🏆] Speed Run Complete! Goal reached in {evt['total_speed_steps']} steps! "
+                f"(Search took {evt['search_steps']} steps - {saved} steps / {pct:.1f}% saved!)",
+                "#4ADE80"
+            )
+            self.paused = True
+            return False
+
+        elif evt["type"] == "ERROR":
+            self.log(f"[ERROR] {evt.get('message', 'Unknown error')}", "#EF4444")
+            self.paused = True
+            return False
+
+        return False
+
+    def start_speed_run(self) -> bool:
+        """Request algorithm engine to plan speed-run path strictly through explored cells and begin."""
+        success = self.engine.start_speed_run()
+        if success:
+            self.paused = False
+            self.log("=========================================", "#F59E0B")
+            self.log("=== 🚀 PHASE 2: SPEED RUN LAUNCHED (MEMORY MODE) ===", "#F59E0B")
+            self.log(
+                f"[SPEED RUN] Driving optimal path: {len(self.engine.speed_run_path)} steps strictly through explored cells",
+                "#F59E0B"
+            )
+        else:
+            self.log("[ERROR] Cannot start speed run: no path to goal found in explored cells!", "#EF4444")
+        return success
 
 
 # ============================================================================
@@ -469,11 +312,11 @@ class SimulationState:
 # ============================================================================
 
 class MazeWidget(QWidget):
-    """Hardware-accelerated, high-DPI canvas rendering the Micromouse grid."""
+    """Hardware-accelerated canvas rendering the Micromouse grid."""
 
-    def __init__(self, sim: SimulationState, parent: Optional[QWidget] = None):
+    def __init__(self, ctrl: UIController, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self.sim = sim
+        self.ctrl = ctrl
         self.setMinimumSize(400, 400)
 
     def paintEvent(self, event) -> None:
@@ -483,7 +326,8 @@ class MazeWidget(QWidget):
 
         width = self.width()
         height = self.height()
-        dim = self.sim.size
+        engine = self.ctrl.engine
+        dim = engine.size
 
         margin = 12
         available_size = min(width, height) - margin * 2
@@ -501,7 +345,7 @@ class MazeWidget(QWidget):
 
         # Colors
         color_visited = QColor("#1E3A8A")
-        color_speed_visited = QColor("#78350F")  # Glowing amber for speed run trail
+        color_speed_visited = QColor("#78350F")
         color_goal = QColor("#065F46")
         color_start = QColor("#312E81")
         color_current = QColor("#2563EB")
@@ -512,7 +356,7 @@ class MazeWidget(QWidget):
         font_dist = QFont("Segoe UI", max(7, cell_size // 3))
         painter.setFont(font_dist)
 
-        is_speed_mode = (self.sim.mode == SimulationState.MODE_SPEED_RUN)
+        is_speed_mode = (engine.mode == MicromouseEngine.MODE_SPEED_RUN)
 
         # 2. Draw Cells
         for y in range(dim):
@@ -521,11 +365,11 @@ class MazeWidget(QWidget):
                 cy = origin_y + (dim - 1 - y) * cell_size
                 cell_rect = QRectF(cx, cy, cell_size, cell_size)
 
-                is_goal = (self.sim.empty_maze[x, y].value == 0) or any(g.x == x and g.y == y for g in self.sim.goal_cells)
+                is_goal = (engine.empty_maze[x, y].value == 0) or any(g.x == x and g.y == y for g in engine.goal_cells)
                 is_start = (x == 0 and y == 0)
-                is_current = (x == self.sim.mouse.x and y == self.sim.mouse.y)
-                is_speed_visited = (x, y) in self.sim.speed_visited if is_speed_mode else False
-                is_visited = (x, y) in self.sim.visited
+                is_current = (x == engine.mouse.x and y == engine.mouse.y)
+                is_speed_visited = (x, y) in engine.speed_visited if is_speed_mode else False
+                is_visited = (x, y) in engine.explored_cells
 
                 if is_current:
                     cell_color = color_speed_current if is_speed_mode else color_current
@@ -545,16 +389,16 @@ class MazeWidget(QWidget):
                 painter.drawRect(cell_rect)
 
                 # Distance values
-                if self.sim.show_distances and (not self.sim.fog_of_war or is_visited or is_goal or is_start):
-                    dist_val = self.sim.empty_maze[x, y].value
+                if self.ctrl.show_distances and (not self.ctrl.fog_of_war or is_visited or is_goal or is_start):
+                    dist_val = engine.empty_maze[x, y].value
                     if dist_val >= 0:
                         txt_color = QColor("#FFFFFF") if (is_current or is_goal or is_start) else QColor("#94A3B8")
                         painter.setPen(QPen(txt_color))
                         painter.drawText(cell_rect, Qt.AlignmentFlag.AlignCenter, str(dist_val))
 
-        # 3. Draw Golden Speed-Run Memory Trajectory Ribbon
-        if self.sim.optimal_path:
-            ribbon_color = QColor(245, 158, 11, 200) if is_speed_mode else QColor(245, 158, 11, 130)
+        # 3. Draw Golden Speed-Run Memory Trajectory Ribbon (Strictly Explored Path)
+        if engine.speed_run_path:
+            ribbon_color = QColor(245, 158, 11, 210) if is_speed_mode else QColor(245, 158, 11, 140)
             ribbon_pen = QPen(
                 ribbon_color,
                 max(2.5, cell_size * 0.14),
@@ -568,7 +412,7 @@ class MazeWidget(QWidget):
                 origin_x + 0 * cell_size + cell_size / 2.0,
                 origin_y + (dim - 1 - 0) * cell_size + cell_size / 2.0
             )
-            for px, py, _ in self.sim.optimal_path:
+            for px, py, _ in engine.speed_run_path:
                 p_curr = QPointF(
                     origin_x + px * cell_size + cell_size / 2.0,
                     origin_y + (dim - 1 - py) * cell_size + cell_size / 2.0
@@ -580,7 +424,7 @@ class MazeWidget(QWidget):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(QColor(254, 240, 138, 220)))
             dot_rad = max(2.0, cell_size * 0.08)
-            for px, py, _ in self.sim.optimal_path:
+            for px, py, _ in engine.speed_run_path:
                 pt = QPointF(
                     origin_x + px * cell_size + cell_size / 2.0,
                     origin_y + (dim - 1 - py) * cell_size + cell_size / 2.0
@@ -597,8 +441,8 @@ class MazeWidget(QWidget):
 
         for y in range(dim):
             for x in range(dim):
-                gt_cell = self.sim.ground_truth[x, y]
-                disc_cell = self.sim.empty_maze[x, y]
+                gt_cell = engine.ground_truth[x, y]
+                disc_cell = engine.empty_maze[x, y]
 
                 x0 = origin_x + x * cell_size
                 y0 = origin_y + (dim - 1 - y) * cell_size
@@ -613,26 +457,25 @@ class MazeWidget(QWidget):
                 def draw_wall_segment(has_gt: bool, has_disc: bool, is_boundary: bool, p0: QPointF, p1: QPointF):
                     if not has_gt:
                         return
-                    if has_disc or is_boundary or not self.sim.fog_of_war:
+                    if has_disc or is_boundary or not self.ctrl.fog_of_war:
                         painter.setPen(pen_outer if is_boundary else pen_known)
                         painter.drawLine(p0, p1)
-                    elif self.sim.fog_of_war:
+                    elif self.ctrl.fog_of_war:
                         painter.setPen(pen_fog)
                         painter.drawLine(p0, p1)
 
-                # North, South, West, East
                 draw_wall_segment(gt_cell.is_north_wall, disc_cell.is_north_wall, is_boundary_n, QPointF(x0, y0), QPointF(x1, y0))
                 draw_wall_segment(gt_cell.is_south_wall, disc_cell.is_south_wall, is_boundary_s, QPointF(x0, y1), QPointF(x1, y1))
                 draw_wall_segment(gt_cell.is_west_wall, disc_cell.is_west_wall, is_boundary_w, QPointF(x0, y0), QPointF(x0, y1))
                 draw_wall_segment(gt_cell.is_east_wall, disc_cell.is_east_wall, is_boundary_e, QPointF(x1, y0), QPointF(x1, y1))
 
-        # 5. Draw Mouse (Authentic MMS Vector Robot Model with Speed Run Afterburners)
-        mouse_cx = origin_x + self.sim.mouse.x * cell_size + cell_size / 2.0
-        mouse_cy = origin_y + (dim - 1 - self.sim.mouse.y) * cell_size + cell_size / 2.0
+        # 5. Draw Mouse (Procedural MMS Vector Robot Model)
+        mouse_cx = origin_x + engine.mouse.x * cell_size + cell_size / 2.0
+        mouse_cy = origin_y + (dim - 1 - engine.mouse.y) * cell_size + cell_size / 2.0
         mouse_size = max(16.0, cell_size * 0.76)
 
         rotations = {0: 0.0, 1: 90.0, 2: 180.0, 3: 270.0}
-        angle_deg = rotations.get(self.sim.mouse.orientation, 0.0)
+        angle_deg = rotations.get(engine.mouse.orientation, 0.0)
 
         painter.save()
         painter.translate(mouse_cx, mouse_cy)
@@ -640,8 +483,8 @@ class MazeWidget(QWidget):
 
         s = mouse_size
 
-        # Afterburner Thruster Flame (in Speed Run mode)
-        if is_speed_mode and not self.sim.finished:
+        # Afterburner Thrusters (during speed run)
+        if is_speed_mode and not engine.is_finished:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QBrush(QColor("#EF4444")))
             painter.drawEllipse(QPointF(0.0, s * 0.44), s * 0.16, s * 0.22)
@@ -658,7 +501,7 @@ class MazeWidget(QWidget):
         painter.drawRoundedRect(QRectF(-s * 0.44, wheel_y, wheel_w, wheel_h), 1.5, 1.5)
         painter.drawRoundedRect(QRectF(s * 0.44 - wheel_w, wheel_y, wheel_w, wheel_h), 1.5, 1.5)
 
-        # Body Pentagon (Cyan in search mode, Racing Gold in speed run)
+        # Chassis Pentagon
         body_color = QColor("#D97706") if is_speed_mode else QColor("#0284C7")
         body_border = QColor("#FDE68A") if is_speed_mode else QColor("#38BDF8")
 
@@ -675,7 +518,7 @@ class MazeWidget(QWidget):
         painter.drawPolygon(body_poly)
 
         # Center Status LED
-        led_color = QColor("#F59E0B") if is_speed_mode else (QColor("#4ADE80") if not self.sim.finished else QColor("#FCD34D"))
+        led_color = QColor("#F59E0B") if is_speed_mode else (QColor("#4ADE80") if not engine.is_finished else QColor("#FCD34D"))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(led_color))
         painter.drawEllipse(QPointF(0.0, -s * 0.12), max(2.0, s * 0.09), max(2.0, s * 0.09))
@@ -702,8 +545,8 @@ class MainWindow(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        # Simulation Model
-        self.sim = SimulationState(initial_preset)
+        # Presentation Controller (wraps MicromouseEngine)
+        self.ctrl = UIController(initial_preset)
 
         # Timer for stepping
         self.timer = QTimer(self)
@@ -727,7 +570,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(8)
 
-        self.maze_widget = MazeWidget(self.sim, self)
+        self.maze_widget = MazeWidget(self.ctrl, self)
         splitter.addWidget(self.maze_widget)
         splitter.setStretchFactor(0, 3)
 
@@ -762,7 +605,7 @@ class MainWindow(QMainWindow):
         for label, val in self.preset_options:
             self.combo_map.addItem(label, val)
 
-        idx = next((i for i, (_, val) in enumerate(self.preset_options) if val == self.sim.map_preset), 4)
+        idx = next((i for i, (_, val) in enumerate(self.preset_options) if val == self.ctrl.preset_or_path), 4)
         self.combo_map.setCurrentIndex(idx)
         self.combo_map.currentIndexChanged.connect(self.on_map_changed)
         layout.addWidget(self.combo_map)
@@ -788,7 +631,7 @@ class MainWindow(QMainWindow):
         self.btn_reset.clicked.connect(self.on_reset_clicked)
         layout.addWidget(self.btn_reset)
 
-        # Speed Run Button (Memory Sprint)
+        # Speed Run Button
         self.btn_speedrun = QPushButton("Speed Run 🚀")
         self.btn_speedrun.setObjectName("speedrun")
         self.btn_speedrun.setToolTip("Run along the discovered shortest memory path (Shortcut: G)")
@@ -807,8 +650,8 @@ class MainWindow(QMainWindow):
             layout.addWidget(lbl_turtle)
 
         self.slider_speed = QSlider(Qt.Orientation.Horizontal)
-        self.slider_speed.setRange(1, 50)  # 1 to 50 steps/sec
-        self.slider_speed.setValue(self.sim.steps_per_sec)
+        self.slider_speed.setRange(1, 50)
+        self.slider_speed.setValue(self.ctrl.steps_per_sec)
         self.slider_speed.setFixedWidth(100)
         self.slider_speed.valueChanged.connect(self.on_speed_changed)
         layout.addWidget(self.slider_speed)
@@ -819,7 +662,7 @@ class MainWindow(QMainWindow):
             lbl_rabbit.setPixmap(QPixmap(rabbit_path).scaled(18, 18, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             layout.addWidget(lbl_rabbit)
 
-        self.lbl_speed = QLabel(f"{self.sim.steps_per_sec}x")
+        self.lbl_speed = QLabel(f"{self.ctrl.steps_per_sec}x")
         self.lbl_speed.setFixedWidth(35)
         layout.addWidget(self.lbl_speed)
 
@@ -837,13 +680,13 @@ class MainWindow(QMainWindow):
 
         # Fog of War Checkbox
         self.chk_fog = QCheckBox("Fog of War")
-        self.chk_fog.setChecked(self.sim.fog_of_war)
+        self.chk_fog.setChecked(self.ctrl.fog_of_war)
         self.chk_fog.toggled.connect(self.on_fog_toggled)
         layout.addWidget(self.chk_fog)
 
         # Distances Checkbox
         self.chk_dist = QCheckBox("Distances")
-        self.chk_dist.setChecked(self.sim.show_distances)
+        self.chk_dist.setChecked(self.ctrl.show_distances)
         self.chk_dist.toggled.connect(self.on_dist_toggled)
         layout.addWidget(self.chk_dist)
 
@@ -940,7 +783,7 @@ class MainWindow(QMainWindow):
             self.on_open_file_dialog()
             return
         else:
-            self.sim.load_map(val)
+            self.ctrl.load_map(val)
         self._update_all()
 
     def on_open_file_dialog(self) -> None:
@@ -948,77 +791,75 @@ class MainWindow(QMainWindow):
             self, "Open Custom Micromouse Maze", "", "Maze Files (*.bin *.num);;All Files (*.*)"
         )
         if file_path:
-            self.sim.load_map(file_path)
+            self.ctrl.load_map(file_path)
             self._update_all()
 
     def on_play_pause(self) -> None:
-        if self.sim.finished:
-            if self.sim.mode == SimulationState.MODE_SPEED_RUN:
-                self.sim.reset()
+        if self.ctrl.engine.is_finished:
+            if self.ctrl.engine.mode == MicromouseEngine.MODE_SPEED_RUN:
+                self.ctrl.reset()
             else:
                 self.on_speed_run_clicked()
                 return
 
-        self.sim.paused = not self.sim.paused
-        if not self.sim.paused:
-            self.timer.start(int(1000 / self.sim.steps_per_sec))
+        self.ctrl.paused = not self.ctrl.paused
+        if not self.ctrl.paused:
+            self.timer.start(int(1000 / self.ctrl.steps_per_sec))
         else:
             self.timer.stop()
         self._update_all()
 
     def on_step_clicked(self) -> None:
-        self.sim.paused = True
+        self.ctrl.paused = True
         self.timer.stop()
-        self.sim.step()
+        self.ctrl.step()
         self._update_all()
 
     def on_reset_clicked(self) -> None:
         self.timer.stop()
-        self.sim.reset()
+        self.ctrl.reset()
         self._update_all()
 
     def on_speed_run_clicked(self) -> None:
-        """Launch high-speed sprint using memory path."""
+        """Launch high-speed sprint strictly through explored cells."""
         # If search is not finished yet, fast-forward search to completion
-        if not self.sim.optimal_path and not self.sim.finished:
-            while not self.sim.finished:
-                self.sim.step()
+        if not self.ctrl.engine.speed_run_path and not self.ctrl.engine.is_finished:
+            while not self.ctrl.engine.is_finished:
+                self.ctrl.step()
 
-        # Launch speed run
-        success = self.sim.start_speed_run()
+        success = self.ctrl.start_speed_run()
         if success:
-            # Set swift speed run rate (at least 12 steps/sec)
-            rate = max(12, self.sim.steps_per_sec)
+            rate = max(12, self.ctrl.steps_per_sec)
             self.timer.start(int(1000 / rate))
         self._update_all()
 
     def on_speed_changed(self, val: int) -> None:
-        self.sim.steps_per_sec = val
+        self.ctrl.steps_per_sec = val
         self.lbl_speed.setText(f"{val}x")
-        if not self.sim.paused:
-            self.timer.setInterval(int(1000 / self.sim.steps_per_sec))
+        if not self.ctrl.paused:
+            self.timer.setInterval(int(1000 / self.ctrl.steps_per_sec))
 
     def on_fog_toggled(self, checked: bool) -> None:
-        self.sim.fog_of_war = checked
+        self.ctrl.fog_of_war = checked
         self.maze_widget.update()
 
     def on_dist_toggled(self, checked: bool) -> None:
-        self.sim.show_distances = checked
+        self.ctrl.show_distances = checked
         self.maze_widget.update()
 
     def on_timer_tick(self) -> None:
-        if not self.sim.paused and not self.sim.finished:
-            still_running = self.sim.step()
+        if not self.ctrl.paused and not self.ctrl.engine.is_finished:
+            still_running = self.ctrl.step()
             if not still_running:
                 self.timer.stop()
             self._update_all()
 
     def on_clear_logs(self) -> None:
         self.console.clear()
-        self.sim.logs.clear()
+        self.ctrl.logs.clear()
 
     def on_copy_logs(self) -> None:
-        text = "\n".join(plain for _, plain in self.sim.logs)
+        text = "\n".join(plain for _, plain in self.ctrl.logs)
         QApplication.clipboard().setText(text)
 
     def keyPressEvent(self, event) -> None:
@@ -1049,10 +890,11 @@ class MainWindow(QMainWindow):
             super().keyPressEvent(event)
 
     def _update_all(self) -> None:
-        is_speed_mode = (self.sim.mode == SimulationState.MODE_SPEED_RUN)
+        engine = self.ctrl.engine
+        is_speed_mode = (engine.mode == MicromouseEngine.MODE_SPEED_RUN)
 
         # 1. Update Badges & Play Button
-        if self.sim.finished:
+        if engine.is_finished:
             if is_speed_mode:
                 self.btn_play.setText("Restart")
                 self.btn_play.setStyleSheet("background-color: #059669;")
@@ -1068,7 +910,7 @@ class MainWindow(QMainWindow):
             self.btn_play.setStyleSheet("background-color: #DC2626;")
             self.lbl_status_badge.setText("[SPEED RUN 🚀]")
             self.lbl_status_badge.setStyleSheet("font-weight:bold; color:#F59E0B;")
-        elif self.sim.paused:
+        elif self.ctrl.paused:
             self.btn_play.setText("Play")
             self.btn_play.setStyleSheet("")
             self.lbl_status_badge.setText("[PAUSED]")
@@ -1080,11 +922,11 @@ class MainWindow(QMainWindow):
             self.lbl_status_badge.setStyleSheet("font-weight:bold; color:#38BDF8;")
 
         # Speed run button styling
-        if is_speed_mode and not self.sim.finished:
+        if is_speed_mode and not engine.is_finished:
             self.btn_speedrun.setText("Sprinting 🚀")
             self.btn_speedrun.setStyleSheet("background-color: #F59E0B; color: #000; font-weight: bold;")
-        elif self.sim.optimal_path:
-            self.btn_speedrun.setText(f"Speed Run 🚀 ({len(self.sim.optimal_path)} steps)")
+        elif engine.speed_run_path:
+            self.btn_speedrun.setText(f"Speed Run 🚀 ({len(engine.speed_run_path)} steps)")
             self.btn_speedrun.setStyleSheet("background-color: #D97706; color: #FFF; font-weight: bold;")
         else:
             self.btn_speedrun.setText("Speed Run 🚀")
@@ -1092,26 +934,27 @@ class MainWindow(QMainWindow):
 
         # 2. Update Telemetry
         orient_names = ["NORTH", "EAST", "SOUTH", "WEST"]
-        self.lbl_coords.setText(f"({self.sim.mouse.x}, {self.sim.mouse.y})")
-        self.lbl_heading.setText(orient_names[self.sim.mouse.orientation])
+        self.lbl_coords.setText(f"({engine.mouse.x}, {engine.mouse.y})")
+        self.lbl_heading.setText(orient_names[engine.mouse.orientation])
 
         if is_speed_mode:
-            self.lbl_steps.setText(f"{self.sim.speed_step_count} (Saved {self.sim.search_step_count - self.sim.speed_step_count})")
+            saved = engine.search_steps - engine.speed_steps
+            self.lbl_steps.setText(f"{engine.speed_steps} (Saved: {saved})")
         else:
-            self.lbl_steps.setText(str(self.sim.step_count))
+            self.lbl_steps.setText(str(engine.step_count))
 
-        f_txt = "WALL" if self.sim.mouse.is_on_front_sensor else "OPEN"
-        l_txt = "WALL" if self.sim.mouse.is_on_left_sensor else "OPEN"
-        r_txt = "WALL" if self.sim.mouse.is_on_right_sensor else "OPEN"
+        f_txt = "WALL" if engine.mouse.is_on_front_sensor else "OPEN"
+        l_txt = "WALL" if engine.mouse.is_on_left_sensor else "OPEN"
+        r_txt = "WALL" if engine.mouse.is_on_right_sensor else "OPEN"
         self.lbl_sensors.setText(f"{f_txt} | {l_txt} | {r_txt}")
 
-        total_cells = self.sim.size * self.sim.size
-        pct = int((len(self.sim.visited) / total_cells) * 100)
+        total_cells = engine.size * engine.size
+        pct = int((len(engine.explored_cells) / total_cells) * 100)
         self.progress_explored.setValue(pct)
-        self.progress_explored.setFormat(f"{len(self.sim.visited)}/{total_cells} cells ({pct}%)")
+        self.progress_explored.setFormat(f"{len(engine.explored_cells)}/{total_cells} cells ({pct}%)")
 
         # 3. Update Console Log
-        html_content = "<br>".join(html for html, _ in self.sim.logs)
+        html_content = "<br>".join(html for html, _ in self.ctrl.logs)
         self.console.setHtml(html_content)
         sb = self.console.verticalScrollBar()
         sb.setValue(sb.maximum())

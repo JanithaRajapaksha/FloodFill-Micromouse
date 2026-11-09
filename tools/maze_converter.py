@@ -15,6 +15,36 @@ import sys
 from typing import List, Tuple
 
 
+def read_bmp_file(filepath: str) -> Tuple[int, int, List[int], List[int]]:
+    """Reads a 194x194 Micromouse competition BMP image (NTF format) into bitmasks."""
+    from PIL import Image
+    with Image.open(filepath) as img:
+        pixels = img.load()
+        width, height = 16, 16
+        h_walls = [0] * (height + 1)
+        v_walls = [0] * (width + 1)
+
+        for y in range(height + 1):
+            r_line = 16 - y
+            y_pixel = 12 * r_line + 1
+            for x in range(width):
+                x_pixel = 12 * x + 6
+                r, g, b = pixels[x_pixel, y_pixel][:3]
+                if r > 128 and g < 60 and b < 60:
+                    h_walls[y] |= (1 << x)
+
+        for x in range(width + 1):
+            c_line = x
+            x_pixel = 12 * c_line + 1
+            for y in range(height):
+                y_pixel = 12 * (15 - y) + 6
+                r, g, b = pixels[x_pixel, y_pixel][:3]
+                if r > 128 and g < 60 and b < 60:
+                    v_walls[x] |= (1 << y)
+
+    return width, height, h_walls, v_walls
+
+
 def read_num_file(filepath: str) -> Tuple[int, int, List[int], List[int]]:
     """Reads an MMS .num file and returns (width, height, h_walls, v_walls)."""
     width = 16
@@ -125,8 +155,8 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Convert command
-    conv_parser = subparsers.add_parser("convert", help="Convert between .num and .bin formats")
-    conv_parser.add_argument("input_file", help="Input maze file (.num or .bin)")
+    conv_parser = subparsers.add_parser("convert", help="Convert between .num, .bin, and .bmp formats")
+    conv_parser.add_argument("input_file", help="Input maze file (.num, .bin, or NTF .bmp)")
     conv_parser.add_argument("output_file", help="Output maze file (.num or .bin)")
 
     # To C code
@@ -151,12 +181,17 @@ def main():
         w, h, hw, vw = read_bin_file(args.input_file)
     elif in_ext == ".num":
         w, h, hw, vw = read_num_file(args.input_file)
+    elif in_ext == ".bmp":
+        w, h, hw, vw = read_bmp_file(args.input_file)
     else:
         # Fallback detection
         try:
             w, h, hw, vw = read_bin_file(args.input_file)
         except Exception:
-            w, h, hw, vw = read_num_file(args.input_file)
+            try:
+                w, h, hw, vw = read_bmp_file(args.input_file)
+            except Exception:
+                w, h, hw, vw = read_num_file(args.input_file)
 
     if args.command == "convert":
         out_ext = os.path.splitext(args.output_file)[1].lower()

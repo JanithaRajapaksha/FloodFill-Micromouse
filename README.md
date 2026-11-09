@@ -68,7 +68,8 @@ The system strictly decouples the three core robotics domains:
 - **Interactive ESP32 Harness**:
   - Live benchmarking console measuring flood-fill steps in microseconds with zero heap degradation.
 - **Python Graphical Visualization**:
-  - Real-time animated Pygame demo that dynamically scales to any maze size.
+  - Modern desktop PyQt6 simulator with Fog of War, dynamic run speed controls, MMS telemetry console, and two-phase Speed Run sprint.
+  - Built-in selector for 103 historical All-Japan Micromouse Championship mazes (1980–2012).
 
 ---
 
@@ -83,7 +84,7 @@ FloodFill-Micromouse/
 ├── floodfill_c/             # Production embedded C library
 │   ├── include/             # Public C headers (maze_map, floodfill_core, sensor_interface, mazes.h)
 │   ├── src/                 # C source implementations
-│   ├── mazes/               # Benchmark test mazes (.num text and .bin binary)
+│   ├── mazes/               # Benchmark test mazes (.num text, .bin binary, and japan_ntf archive)
 │   ├── tests/               # C unit test suite (7,200+ assertions including ASan)
 │   ├── Makefile             # C library build system (all, test, run, asan, clean)
 │   └── README.md            # Embedded C module documentation
@@ -91,19 +92,20 @@ FloodFill-Micromouse/
 │   ├── cell.py              # Grid and Cell representation
 │   ├── mouse.py             # Mouse kinematics model
 │   ├── mazes.py             # Optimized bitmask presets and loaders (.num, .bin)
-│   ├── mazes/               # Benchmark test mazes (.num text and .bin binary)
-│   ├── floodFill.py         # BFS flood-fill algorithm
-│   ├── ui.py                # Unified Pygame visualization
+│   ├── mazes/               # Benchmark test mazes (.num text, .bin binary, and japan_ntf archive)
+│   ├── floodFill.py         # BFS flood-fill algorithm and MicromouseEngine
+│   ├── ui.py                # Unified PyQt6 visualizer (Fog of War, Speed Run, MMS console)
 │   ├── main.py              # Python demonstration entrypoint
 │   └── README.md            # Python module documentation
 ├── mms_implementations/     # Official MMS (mackorone/mms) simulator solvers
 │   ├── c/                   # Standalone C solver communicating via MMS stdio API
 │   ├── python/              # Standalone Python solver communicating via MMS stdio API
-│   ├── mazes/               # Official MMS benchmark test mazes
+│   ├── mazes/               # Official MMS benchmark test mazes and japan_ntf archive
 │   ├── test_all_mazes.py    # Automated headless MMS runner & parity validator
 │   └── README.md            # MMS configuration and setup guide
 ├── tools/                   # Developer CLI utilities
-│   └── maze_converter.py    # CLI tool to inspect, convert (.num <-> .bin), and generate C/Py mazes
+│   ├── maze_converter.py    # CLI tool to inspect, convert (.num <-> .bin <-> .bmp), and generate C/Py mazes
+│   └── fetch_ntf_mazes.py   # Downloader and batch converter for NTF Japan competition mazes
 ├── micromouse_stm32/        # Complete STM32CubeIDE project (STM32F103C8T6 Blue Pill)
 │   ├── .project / .cproject # STM32CubeIDE Eclipse project descriptors
 │   ├── micromouse_stm32.ioc # STM32CubeMX device & clock configuration

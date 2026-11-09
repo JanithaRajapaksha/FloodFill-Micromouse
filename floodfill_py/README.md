@@ -12,6 +12,7 @@ floodfill_py/
 ├── mouse.py       # Mouse agent kinematics and sensor update logic
 ├── mazes.py       # Compact bitmask presets (5, 6, 10, 16, MMS), CompactMaze class, and loaders
 ├── mazes/         # Benchmark test mazes (.num text and compact .bin)
+│   └── japan_ntf/ # 103 historical All-Japan championship mazes (1980-2012)
 ├── floodFill.py   # Core BFS flood-fill algorithm and navigation runner
 ├── main.py        # Command-line navigation demonstration (10x10 benchmark)
 ├── ui.py          # Unified interactive PyQt6 simulator (Fog of War, Speed Run, MMS console)
@@ -35,6 +36,10 @@ python floodfill_py/ui.py
 # Run with arbitrary maze preset (e.g. example2, 16, or 6)
 python floodfill_py/ui.py example2
 python floodfill_py/ui.py 10
+
+# Run with any historical Japanese championship maze (103 available)
+python floodfill_py/ui.py AllJapan_001_1980_classic
+python floodfill_py/ui.py Other_World85Fin_1985_classic
 ```
 *(Requires `PyQt6` for the modern dark desktop interface).*
 

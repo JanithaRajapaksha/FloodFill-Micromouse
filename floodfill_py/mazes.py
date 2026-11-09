@@ -244,13 +244,32 @@ MAZE_PRESETS = {
 def build_preset_maze(size_or_name: Union[int, str]) -> Maze:
     """
     Construct and populate a Maze using a preset identifier.
-    Supports integer sizes (5, 6, 10, 16) or named presets ('example1'..'example5', 'blank').
+    Supports integer sizes (5, 6, 10, 16) or named presets ('example1'..'example5', 'blank'),
+    or any historical maze from the Japan NTF archive.
     """
-    if size_or_name not in MAZE_PRESETS:
-        raise ValueError(
-            f"Unsupported preset: {size_or_name}. Choose from {list(MAZE_PRESETS.keys())}"
-        )
-    size = 16 if isinstance(size_or_name, str) and not size_or_name.isdigit() else int(size_or_name)
-    maze = create_empty_maze(size)
-    MAZE_PRESETS[size_or_name](maze)
-    return maze
+    if size_or_name in MAZE_PRESETS:
+        size = 16 if isinstance(size_or_name, str) and not size_or_name.isdigit() else int(size_or_name)
+        maze = create_empty_maze(size)
+        MAZE_PRESETS[size_or_name](maze)
+        return maze
+
+    # Check for file path or named NTF archive file
+    str_name = str(size_or_name)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        str_name,
+        os.path.join(base_dir, "mazes", f"{str_name}.bin"),
+        os.path.join(base_dir, "mazes", "japan_ntf", f"{str_name}.bin"),
+        os.path.join(base_dir, "mazes", f"{str_name}.num"),
+        os.path.join(base_dir, "mazes", "japan_ntf", f"{str_name}.num"),
+    ]
+    for cand in candidates:
+        if os.path.exists(cand):
+            if cand.endswith(".bin"):
+                return load_bin_maze(cand)
+            elif cand.endswith(".num"):
+                return load_num_maze(cand)
+
+    raise ValueError(
+        f"Unsupported preset: {size_or_name}. Choose from {list(MAZE_PRESETS.keys())} or a Japan NTF archive maze."
+    )

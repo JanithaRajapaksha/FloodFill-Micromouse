@@ -253,6 +253,22 @@ class TestFloodFillRegression(unittest.TestCase):
             if os.path.exists(tmp_bin):
                 os.remove(tmp_bin)
 
+    def test_japan_ntf_archive_mazes(self):
+        ntf_dir = os.path.join(os.path.dirname(__file__), "..", "floodfill_py", "mazes", "japan_ntf")
+        self.assertTrue(os.path.exists(ntf_dir))
+        bin_files = [f for f in os.listdir(ntf_dir) if f.endswith(".bin")]
+        num_files = [f for f in os.listdir(ntf_dir) if f.endswith(".num")]
+        self.assertEqual(len(bin_files), 103)
+        self.assertEqual(len(num_files), 103)
+
+        # Test loading and solving Inaugural 1980 All-Japan maze
+        m80 = build_preset_maze("AllJapan_001_1980_classic")
+        self.assertEqual(m80.size, 16)
+        path80 = navigate_ui(Mouse(), m80)
+        self.assertGreater(len(path80), 0)
+        final_cell = m80[path80[-1][0], path80[-1][1]]
+        self.assertIn(final_cell, m80.get_centers())
+
 
 if __name__ == "__main__":
     unittest.main()

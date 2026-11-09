@@ -11,7 +11,9 @@ This document records architectural updates, memory optimizations, and API addit
 * **68-Byte Compact Bitmask Representation**: Replaced ~2,500 lines of verbose matrix arrays with physical horizontal/vertical wall bit arrays. Reduces Flash ROM footprint per 16x16 maze from 256 bytes to 68 bytes.
 * **Compact Binary (`.bin`) Maze Format**: Introduced standard 70-byte binary format (98% smaller than 10KB `.num` files).
 * **MMS Simulator Mazes & Presets**: Integrated `blank`, `example1`–`example5` test mazes into both C and Python.
-* **Converter CLI Utility (`tools/maze_converter.py`)**: Convert between `.num` and `.bin`, inspect maze statistics, and export ready-to-paste C/Python definitions.
+* **103 Official All-Japan NTF Competition Mazes (1980–2012)**: Converted all historical competition mazes from the New Technology Foundation archive (`https://www.ntf.or.jp/mouse/history/`) into both compact `.bin` (70 bytes) and MMS `.num` formats across Python, C, and MMS folders. 100% verified solvable.
+* **BMP Image Maze Parser & Importer**: Added native 194x194 BMP parser into `tools/maze_converter.py` and batch automation in `tools/fetch_ntf_mazes.py`.
+* **Converter CLI Utility (`tools/maze_converter.py`)**: Convert between `.num`, `.bin`, and `.bmp`, inspect maze statistics, and export ready-to-paste C/Python definitions.
 
 ---
 

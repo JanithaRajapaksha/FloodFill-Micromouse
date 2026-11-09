@@ -223,7 +223,8 @@ class UIController:
 
         self.logs.clear()
         self.log("=== MMS Micromouse Simulator Initialized ===", "#38BDF8")
-        self.log(f"[INFO] Map: '{self.preset_or_path}' ({self.engine.size}x{self.engine.size})", "#94A3B8")
+        display_name = os.path.basename(self.preset_or_path) if os.path.exists(self.preset_or_path) else self.preset_or_path
+        self.log(f"[INFO] Map: '{display_name}' ({self.engine.size}x{self.engine.size})", "#94A3B8")
         self.log("[INFO] Phase 1: Search & Exploration Run", "#94A3B8")
         start_dist = self.engine.empty_maze[0, 0].value
         self.log(f"[START] Position: (0, 0), facing NORTH, dist={start_dist}", "#38BDF8")
@@ -590,6 +591,7 @@ class MainWindow(QMainWindow):
         # Map Selector
         layout.addWidget(QLabel("<b>Map:</b>"))
         self.combo_map = QComboBox()
+        self.combo_map.setMaxVisibleItems(25)
         self.preset_options = [
             ("5x5", "5"),
             ("6x6", "6"),
@@ -600,8 +602,19 @@ class MainWindow(QMainWindow):
             ("example4", "example4"),
             ("example5", "example5"),
             ("blank", "blank"),
-            ("Load Custom .bin/.num...", "custom"),
         ]
+
+        # Dynamically discover all Japanese NTF archive mazes
+        ntf_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mazes", "japan_ntf")
+        if os.path.exists(ntf_dir):
+            bin_files = sorted(f for f in os.listdir(ntf_dir) if f.endswith(".bin"))
+            for f in bin_files:
+                base_name = f[:-4]
+                label = base_name.replace("_", " ")
+                self.preset_options.append((f"NTF: {label}", os.path.join(ntf_dir, f)))
+
+        self.preset_options.append(("Load Custom .bin/.num...", "custom"))
+
         for label, val in self.preset_options:
             self.combo_map.addItem(label, val)
 

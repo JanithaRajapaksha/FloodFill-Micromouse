@@ -23,9 +23,8 @@ BASE_URL = 'https://www.ntf.or.jp/mouse/history/index.html'
 IMG_BASE_URL = 'https://www.ntf.or.jp/mouse/history/'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PY_MAZES_DIR = os.path.join(PROJECT_ROOT, 'floodfill_py', 'mazes', 'japan_ntf')
-C_MAZES_DIR = os.path.join(PROJECT_ROOT, 'floodfill_c', 'mazes', 'japan_ntf')
-MMS_MAZES_DIR = os.path.join(PROJECT_ROOT, 'mms_implementations', 'mazes', 'japan_ntf')
+BIN_NTF_DIR = os.path.join(PROJECT_ROOT, 'mazes', 'bin', 'japan_ntf')
+NUM_NTF_DIR = os.path.join(PROJECT_ROOT, 'mazes', 'num', 'japan_ntf')
 
 
 def clean_name(rel_url: str) -> str:
@@ -106,15 +105,9 @@ def fetch_and_convert(rel_url: str) -> Tuple[str, bool, str]:
         if h_walls[0] != 0xFFFF or h_walls[16] != 0xFFFF or v_walls[0] != 0xFFFF or v_walls[16] != 0xFFFF:
             return name, False, "Perimeter not closed"
 
-        # Write to Python mazes
-        write_bin(os.path.join(PY_MAZES_DIR, f"{name}.bin"), width, height, h_walls, v_walls)
-        write_num(os.path.join(PY_MAZES_DIR, f"{name}.num"), width, height, h_walls, v_walls)
-
-        # Write to C mazes (.bin)
-        write_bin(os.path.join(C_MAZES_DIR, f"{name}.bin"), width, height, h_walls, v_walls)
-
-        # Write to MMS mazes (.num)
-        write_num(os.path.join(MMS_MAZES_DIR, f"{name}.num"), width, height, h_walls, v_walls)
+        # Write directly to categorized shared directories
+        write_bin(os.path.join(BIN_NTF_DIR, f"{name}.bin"), width, height, h_walls, v_walls)
+        write_num(os.path.join(NUM_NTF_DIR, f"{name}.num"), width, height, h_walls, v_walls)
 
         return name, True, "OK"
     except Exception as e:
@@ -122,9 +115,8 @@ def fetch_and_convert(rel_url: str) -> Tuple[str, bool, str]:
 
 
 def main():
-    os.makedirs(PY_MAZES_DIR, exist_ok=True)
-    os.makedirs(C_MAZES_DIR, exist_ok=True)
-    os.makedirs(MMS_MAZES_DIR, exist_ok=True)
+    os.makedirs(BIN_NTF_DIR, exist_ok=True)
+    os.makedirs(NUM_NTF_DIR, exist_ok=True)
 
     print(f"Connecting to NTF Archive: {BASE_URL}...")
     req = urllib.request.Request(BASE_URL, headers={'User-Agent': 'Mozilla/5.0'})
@@ -146,9 +138,8 @@ def main():
 
     print(f"\n==========================================")
     print(f"Successfully converted {success_count}/{len(maze_rel_urls)} NTF mazes!")
-    print(f"Python files: {PY_MAZES_DIR} (.bin + .num)")
-    print(f"C files:      {C_MAZES_DIR} (.bin)")
-    print(f"MMS files:    {MMS_MAZES_DIR} (.num)")
+    print(f"Binary archive: {BIN_NTF_DIR} (.bin)")
+    print(f"Text archive:   {NUM_NTF_DIR} (.num)")
     print(f"==========================================")
 
 

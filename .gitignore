@@ -10,10 +10,14 @@ __pycache__/
 *.so
 *.dylib
 *.a
-bin/
-obj/
+/bin/
+/obj/
 floodfill_c/bin/
 floodfill_c/obj/
+
+# Allow binary maze data files
+!mazes/bin/
+!mazes/bin/**
 
 # PlatformIO & Embedded artifacts
 .pio/
@@ -33,4 +37,4 @@ Thumbs.db
 venv/
 env/
 
-mms/
+/mms/

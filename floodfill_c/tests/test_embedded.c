@@ -332,10 +332,14 @@ static void test_compact_binary_mazes(void) {
         build_preset_mms_maze(&map_preset, names[i]);
 
         char path[128];
-        snprintf(path, sizeof(path), "floodfill_c/mazes/%s.bin", names[i]);
+        snprintf(path, sizeof(path), "mazes/bin/mms_mazes/%s.bin", names[i]);
 
         MazeMap map_bin;
         bool loaded = maze_map_load_bin_file(&map_bin, path);
+        if (!loaded) {
+            snprintf(path, sizeof(path), "mazes/%s.bin", names[i]);
+            loaded = maze_map_load_bin_file(&map_bin, path);
+        }
         TEST_ASSERT(loaded, "Failed to load binary maze file");
         TEST_ASSERT(map_bin.size == map_preset.size, "Size mismatch between binary and preset");
 

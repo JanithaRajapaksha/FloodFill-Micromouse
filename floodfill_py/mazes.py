@@ -253,16 +253,19 @@ def build_preset_maze(size_or_name: Union[int, str]) -> Maze:
         MAZE_PRESETS[size_or_name](maze)
         return maze
 
-    # Check for file path or named NTF archive file
+    # Check for file path or named categorized maze file
     str_name = str(size_or_name)
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        str_name,
-        os.path.join(base_dir, "mazes", f"{str_name}.bin"),
-        os.path.join(base_dir, "mazes", "japan_ntf", f"{str_name}.bin"),
-        os.path.join(base_dir, "mazes", f"{str_name}.num"),
-        os.path.join(base_dir, "mazes", "japan_ntf", f"{str_name}.num"),
-    ]
+    project_root = os.path.dirname(base_dir)
+    mazes_root = os.path.join(project_root, "mazes")
+
+    candidates = [str_name]
+    subcategories = ["mms_mazes", "janitha_mazes", "japan_ntf"]
+    for ext in [".bin", ".num"]:
+        folder = "bin" if ext == ".bin" else "num"
+        for sub in subcategories:
+            candidates.append(os.path.join(mazes_root, folder, sub, f"{str_name}{ext}"))
+            candidates.append(os.path.join(mazes_root, folder, sub, str_name))
     for cand in candidates:
         if os.path.exists(cand):
             if cand.endswith(".bin"):

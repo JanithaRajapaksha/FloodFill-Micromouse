@@ -12,7 +12,9 @@ import subprocess
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PY_DIR = os.path.join(SCRIPT_DIR, "python")
 C_DIR = os.path.join(SCRIPT_DIR, "c")
-MAZES_DIR = os.path.join(SCRIPT_DIR, "mazes")
+MAZES_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "mazes", "num", "mms_mazes")
+if not os.path.exists(MAZES_DIR):
+    MAZES_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "mazes")
 
 sys.path.insert(0, PY_DIR)
 from mazes import load_num_maze, get_mms_preset_maze, build_preset_maze

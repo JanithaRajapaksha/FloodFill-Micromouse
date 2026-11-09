@@ -592,20 +592,31 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("<b>Map:</b>"))
         self.combo_map = QComboBox()
         self.combo_map.setMaxVisibleItems(25)
-        self.preset_options = [
-            ("5x5", "5"),
-            ("6x6", "6"),
-            ("10x10", "10"),
-            ("16x16 (Ex1)", "16"),
-            ("example2", "example2"),
-            ("example3", "example3"),
-            ("example4", "example4"),
-            ("example5", "example5"),
-            ("blank", "blank"),
-        ]
 
-        # Dynamically discover all Japanese NTF archive mazes
-        ntf_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mazes", "japan_ntf")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        bin_root = os.path.join(project_root, "mazes", "bin")
+
+        self.preset_options = []
+
+        # 1. Janitha Mazes (5x5, 6x6, 10x10, 16x16)
+        janitha_dir = os.path.join(bin_root, "janitha_mazes")
+        if os.path.exists(janitha_dir):
+            for f in ["5x5.bin", "6x6.bin", "10x10.bin", "16x16.bin"]:
+                p = os.path.join(janitha_dir, f)
+                if os.path.exists(p):
+                    self.preset_options.append((f"Janitha: {f[:-4]}", p))
+
+        # 2. MMS Mazes (blank, example1..5)
+        mms_dir = os.path.join(bin_root, "mms_mazes")
+        if os.path.exists(mms_dir):
+            for f in ["blank.bin", "example1.bin", "example2.bin", "example3.bin", "example4.bin", "example5.bin"]:
+                p = os.path.join(mms_dir, f)
+                if os.path.exists(p):
+                    self.preset_options.append((f"MMS: {f[:-4]}", p))
+
+        # 3. Japan NTF Mazes (103 tournament mazes)
+        ntf_dir = os.path.join(bin_root, "japan_ntf")
         if os.path.exists(ntf_dir):
             bin_files = sorted(f for f in os.listdir(ntf_dir) if f.endswith(".bin"))
             for f in bin_files:
@@ -618,7 +629,12 @@ class MainWindow(QMainWindow):
         for label, val in self.preset_options:
             self.combo_map.addItem(label, val)
 
-        idx = next((i for i, (_, val) in enumerate(self.preset_options) if val == self.ctrl.preset_or_path), 4)
+        idx = 4
+        for i, (_, val) in enumerate(self.preset_options):
+            if val == self.ctrl.preset_or_path or os.path.splitext(os.path.basename(val))[0] == self.ctrl.preset_or_path:
+                idx = i
+                break
+
         self.combo_map.setCurrentIndex(idx)
         self.combo_map.currentIndexChanged.connect(self.on_map_changed)
         layout.addWidget(self.combo_map)

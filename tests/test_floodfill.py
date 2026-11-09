@@ -222,7 +222,7 @@ class TestFloodFillRegression(unittest.TestCase):
 
     def test_compact_binary_mazes(self):
         from mazes import load_bin_maze, save_bin_maze
-        mazes_dir = os.path.join(os.path.dirname(__file__), "..", "floodfill_py", "mazes")
+        mazes_dir = os.path.join(os.path.dirname(__file__), "..", "mazes", "bin", "mms_mazes")
         for name in ["example1", "example2", "example3", "example4", "example5", "blank"]:
             bin_path = os.path.join(mazes_dir, f"{name}.bin")
             self.assertTrue(os.path.exists(bin_path))
@@ -254,12 +254,28 @@ class TestFloodFillRegression(unittest.TestCase):
                 os.remove(tmp_bin)
 
     def test_japan_ntf_archive_mazes(self):
-        ntf_dir = os.path.join(os.path.dirname(__file__), "..", "floodfill_py", "mazes", "japan_ntf")
-        self.assertTrue(os.path.exists(ntf_dir))
-        bin_files = [f for f in os.listdir(ntf_dir) if f.endswith(".bin")]
-        num_files = [f for f in os.listdir(ntf_dir) if f.endswith(".num")]
+        bin_dir = os.path.join(os.path.dirname(__file__), "..", "mazes", "bin", "japan_ntf")
+        num_dir = os.path.join(os.path.dirname(__file__), "..", "mazes", "num", "japan_ntf")
+        self.assertTrue(os.path.exists(bin_dir))
+        self.assertTrue(os.path.exists(num_dir))
+        bin_files = [f for f in os.listdir(bin_dir) if f.endswith(".bin")]
+        num_files = [f for f in os.listdir(num_dir) if f.endswith(".num")]
         self.assertEqual(len(bin_files), 103)
         self.assertEqual(len(num_files), 103)
+
+        # Verify janitha_mazes category
+        jan_bin = os.path.join(os.path.dirname(__file__), "..", "mazes", "bin", "janitha_mazes")
+        jan_num = os.path.join(os.path.dirname(__file__), "..", "mazes", "num", "janitha_mazes")
+        self.assertEqual(len(os.listdir(jan_bin)), 4)
+        self.assertEqual(len(os.listdir(jan_num)), 4)
+
+        # Test loading and solving Inaugural 1980 All-Japan maze
+        m80 = build_preset_maze("AllJapan_001_1980_classic")
+        self.assertEqual(m80.size, 16)
+        path80 = navigate_ui(Mouse(), m80)
+        self.assertGreater(len(path80), 0)
+        final_cell = m80[path80[-1][0], path80[-1][1]]
+        self.assertIn(final_cell, m80.get_centers())
 
         # Test loading and solving Inaugural 1980 All-Japan maze
         m80 = build_preset_maze("AllJapan_001_1980_classic")

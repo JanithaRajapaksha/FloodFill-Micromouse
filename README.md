@@ -81,10 +81,18 @@ FloodFill-Micromouse/
 ├── README.md                # Project documentation
 ├── CHANGELOG.md             # Submodule integration guide and detailed update log
 ├── .gitignore               # Clean Git exclusion rules
+├── mazes/                   # Unified categorized maze repository (accessible by all scripts)
+│   ├── bin/                 # Compact binary bitmask files (.bin)
+│   │   ├── janitha_mazes/   # Custom & benchmark layouts (5x5, 6x6, 10x10, 16x16)
+│   │   ├── mms_mazes/       # Official MMS test mazes (blank, example1..5)
+│   │   └── japan_ntf/       # 103 All-Japan tournament championship mazes (1980–2012)
+│   └── num/                 # MMS human-readable ASCII text files (.num)
+│       ├── janitha_mazes/   # Text formats for 5x5, 6x6, 10x10, 16x16
+│       ├── mms_mazes/       # Text formats for blank, example1..5
+│       └── japan_ntf/       # Text formats for 103 All-Japan tournament mazes
 ├── floodfill_c/             # Production embedded C library
 │   ├── include/             # Public C headers (maze_map, floodfill_core, sensor_interface, mazes.h)
 │   ├── src/                 # C source implementations
-│   ├── mazes/               # Benchmark test mazes (.num text, .bin binary, and japan_ntf archive)
 │   ├── tests/               # C unit test suite (7,200+ assertions including ASan)
 │   ├── Makefile             # C library build system (all, test, run, asan, clean)
 │   └── README.md            # Embedded C module documentation
@@ -92,7 +100,6 @@ FloodFill-Micromouse/
 │   ├── cell.py              # Grid and Cell representation
 │   ├── mouse.py             # Mouse kinematics model
 │   ├── mazes.py             # Optimized bitmask presets and loaders (.num, .bin)
-│   ├── mazes/               # Benchmark test mazes (.num text, .bin binary, and japan_ntf archive)
 │   ├── floodFill.py         # BFS flood-fill algorithm and MicromouseEngine
 │   ├── ui.py                # Unified PyQt6 visualizer (Fog of War, Speed Run, MMS console)
 │   ├── main.py              # Python demonstration entrypoint
@@ -100,7 +107,6 @@ FloodFill-Micromouse/
 ├── mms_implementations/     # Official MMS (mackorone/mms) simulator solvers
 │   ├── c/                   # Standalone C solver communicating via MMS stdio API
 │   ├── python/              # Standalone Python solver communicating via MMS stdio API
-│   ├── mazes/               # Official MMS benchmark test mazes and japan_ntf archive
 │   ├── test_all_mazes.py    # Automated headless MMS runner & parity validator
 │   └── README.md            # MMS configuration and setup guide
 ├── tools/                   # Developer CLI utilities

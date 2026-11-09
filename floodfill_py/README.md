@@ -11,12 +11,21 @@ floodfill_py/
 ├── cell.py        # Cell and Maze classes with reciprocal wall linking
 ├── mouse.py       # Mouse agent kinematics and sensor update logic
 ├── mazes.py       # Compact bitmask presets (5, 6, 10, 16, MMS), CompactMaze class, and loaders
-├── mazes/         # Benchmark test mazes (.num text and compact .bin)
-│   └── japan_ntf/ # 103 historical All-Japan championship mazes (1980-2012)
 ├── floodFill.py   # Core BFS flood-fill algorithm and navigation runner
 ├── main.py        # Command-line navigation demonstration (10x10 benchmark)
 ├── ui.py          # Unified interactive PyQt6 simulator (Fog of War, Speed Run, MMS console)
 └── ui_assets/     # Graphic assets (MMS icons, turtle/rabbit icons, mouse sprite)
+
+# Mazes are stored in the unified root directory:
+../mazes/
+├── bin/
+│   ├── janitha_mazes/ # 5x5, 6x6, 10x10, 16x16
+│   ├── mms_mazes/     # blank, example1..5
+│   └── japan_ntf/     # 103 All-Japan competition mazes
+└── num/
+    ├── janitha_mazes/ # 5x5, 6x6, 10x10, 16x16
+    ├── mms_mazes/     # blank, example1..5
+    └── japan_ntf/     # 103 All-Japan competition mazes
 ```
 
 ---

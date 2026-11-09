@@ -29,17 +29,18 @@ floodfill_c/
 │   ├── sensor_interface.h  # Standardized multi-sensor proximity abstraction
 │   ├── navigator.h         # Robot pose tracking and navigation decision logic
 │   ├── motor_controller.h  # Abstract motor commands and HAL callback interface
-│   └── mazes.h             # Benchmark maze layouts (5x5, 6x6, 10x10, 16x16)
+│   └── mazes.h             # CompactMaze bitmask struct, presets (5, 6, 10, 16, MMS), and file loaders
 ├── src/
 │   ├── maze_map.c          # Wall bitmask operations and reciprocal wall linking
 │   ├── floodfill_core.c    # Deterministic O(N²) ring-buffer flood fill
 │   ├── sensor_interface.c  # Proximity evaluation (binary, ToF, ultrasonic, ADC)
 │   ├── navigator.c         # Pose update, gradient step, and command generation
 │   ├── motor_controller.c  # NavCommand -> MotorCommand translation
-│   ├── mazes.c             # Preset wall configurations
+│   ├── mazes.c             # Compact 68-byte bitmask presets & .bin / .num loaders
 │   └── main.c              # Demonstration and benchmarking simulation runner
+├── mazes/                  # Benchmark test mazes (.num and compact .bin)
 ├── tests/
-│   └── test_embedded.c     # Comprehensive unit and integration test suite
+│   └── test_embedded.c     # Comprehensive unit test suite (7,200+ assertions)
 └── Makefile                # Build configuration with AddressSanitizer support
 ```
 
@@ -112,5 +113,32 @@ void robot_step(void) {
     NavCommand cmd = navigator_step(&g_nav, &walls);
     motor_controller_execute(&g_motors, cmd);
 }
+```
+
+---
+
+## Compact Maze Representation & Presets
+
+For microcontrollers with strict Flash ROM constraints (e.g. STM32 Blue Pill with 64 KB Flash), mazes can be represented in `CompactMaze` format (68 bytes per 16×16 maze, instead of 256 bytes):
+
+```c
+#include "mazes.h"
+
+// 1. Initialize from built-in presets:
+MazeMap map;
+build_preset_maze(&map, 16);               // Standard 5x5, 6x6, 10x10, 16x16
+build_preset_mms_maze(&map, "example2");   // "blank", "example1" - "example5"
+
+// 2. Unpack custom compact bitmasks:
+static const CompactMaze MY_MAZE = {
+    16, 16,
+    { 0xffff, 0x23cd, /* ... 17 uint16_t values ... */ }, // h_walls
+    { 0xffff, 0xf1e4, /* ... 17 uint16_t values ... */ }  // v_walls
+};
+compact_maze_apply(&MY_MAZE, &map);
+
+// 3. File loading (simulator / desktop builds):
+maze_map_load_bin_file(&map, "mazes/example2.bin");
+maze_map_load_num_file(&map, "mazes/example2.num");
 ```
 

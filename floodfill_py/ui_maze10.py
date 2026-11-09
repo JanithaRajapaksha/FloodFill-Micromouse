@@ -1,12 +1,13 @@
 """
 10x10 Maze UI Demonstration.
+Delegates to unified interactive simulator in ui.py.
 """
 
 from ui import run_simulation
 
 
 def main() -> None:
-    run_simulation(maze_size=10)
+    run_simulation(preset_name="10")
 
 
 if __name__ == "__main__":
